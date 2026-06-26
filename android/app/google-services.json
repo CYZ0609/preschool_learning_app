@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "779251931168",
+    "project_id": "project-96d8e",
+    "storage_bucket": "project-96d8e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:779251931168:android:c433148fd1666e5c0f0445",
+        "android_client_info": {
+          "package_name": "com.example.preschool_learning_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "779251931168-veplo67ajfilguk09ohaa17d0u8od4l2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7WvCjkoil75EK5B6nZ8Jw4X1K43WU7RY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "779251931168-veplo67ajfilguk09ohaa17d0u8od4l2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "779251931168-mg85nea3chdfg4nav19bcia80o6n3389.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.preschoolLearningApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:779251931168:android:f1285cdd72a8725e0f0445",
+        "android_client_info": {
+          "package_name": "com.preschool_learning_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "779251931168-veplo67ajfilguk09ohaa17d0u8od4l2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7WvCjkoil75EK5B6nZ8Jw4X1K43WU7RY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "779251931168-veplo67ajfilguk09ohaa17d0u8od4l2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "779251931168-mg85nea3chdfg4nav19bcia80o6n3389.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.preschoolLearningApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
