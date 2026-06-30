@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'student/student_home.dart';
 import 'parent/parent_home.dart';
 import 'teacher/teacher_home.dart';
 import 'student/age_selection_screen.dart';

@@ -3,7 +3,8 @@ import '../../services/progress_service.dart';
 
 class WritingGameScreen extends StatefulWidget {
   final String ageGroup;
-  const WritingGameScreen({super.key, required this.ageGroup});
+  final String kidId;
+  const WritingGameScreen({super.key, required this.ageGroup, required this.kidId});
 
   @override
   State<WritingGameScreen> createState() => _WritingGameScreenState();
@@ -104,6 +105,7 @@ class _WritingGameScreenState extends State<WritingGameScreen> {
       ageGroup: widget.ageGroup,
       score: score,
       totalQuestions: questions.length,
+      kidId: widget.kidId,
     );
 
     showDialog(

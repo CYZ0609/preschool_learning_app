@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'dart:math';
 import '../../services/progress_service.dart';
 
 class ListeningGameScreen extends StatefulWidget {
   final String ageGroup;
-  const ListeningGameScreen({super.key, required this.ageGroup});
-
+  final String kidId;
+  const ListeningGameScreen({super.key, required this.ageGroup, required this.kidId});
+  
   @override
   State<ListeningGameScreen> createState() => _ListeningGameScreenState();
 }
@@ -17,6 +17,9 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
   int difficultyLevel = 1;
   String? selectedAnswer;
   bool answered = false;
+  
+  // 第一步：加入 loading 变量
+  bool isLoadingDifficulty = true;
 
   final FlutterTts tts = FlutterTts();
 
@@ -85,7 +88,7 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
             'options': [
               {'text': 'Pig', 'image': 'assets/images/pig.png'},
               {'text': 'Cow', 'image': 'assets/images/cow.png'},
-              {'text': 'Hen', 'image': 'assets/images/hen.png'},
+              {'text': 'Ant', 'image': 'assets/images/ant.png'},
               {'text': 'Fox', 'image': 'assets/images/fox.png'},
             ],
             'answer': 'Pig'
@@ -96,7 +99,7 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
             'options': [
               {'text': 'Pig', 'image': 'assets/images/pig.png'},
               {'text': 'Cow', 'image': 'assets/images/cow.png'},
-              {'text': 'Hen', 'image': 'assets/images/hen.png'},
+              {'text': 'Ant', 'image': 'assets/images/ant.png'},
               {'text': 'Fox', 'image': 'assets/images/fox.png'},
             ],
             'answer': 'Cow'
@@ -300,9 +303,9 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
             'audio': 'comfortable',
             'options': [
               {'text': 'Comfortable', 'image': 'assets/images/comfortable.png'},
-              {'text': 'Complicated', 'image': 'assets/images/comfortable.png'},
-              {'text': 'Community', 'image': 'assets/images/comfortable.png'},
-              {'text': 'Competition', 'image': 'assets/images/comfortable.png'},
+              {'text': 'Complicated', 'image': 'assets/images/complicated.png'},
+              {'text': 'Community', 'image': 'assets/images/community.png'},
+              {'text': 'Competition', 'image': 'assets/images/competition.png'},
             ],
             'answer': 'Comfortable'
           },
@@ -365,17 +368,29 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
     }
   }
 
+  // 第二步：改写 initState 并加入 _loadDifficulty
   @override
   void initState() {
     super.initState();
-    for (var q in questions) {
-      q['options'] = List<Map<String, dynamic>>.from(q['options'])..shuffle();
-    }
-    Future.delayed(Duration.zero, () {
-      setState(() {});
-    });
     tts.setLanguage('en-US');
     tts.setSpeechRate(0.4);
+    _loadDifficulty();
+  }
+
+  Future<void> _loadDifficulty() async {
+    final level = await ProgressService.getDifficultyLevel(
+        'listening', widget.ageGroup);
+    
+    if (!mounted) return;
+    setState(() {
+      difficultyLevel = level;
+      isLoadingDifficulty = false;
+      for (var q in questions) {
+        q['options'] =
+            List<Map<String, dynamic>>.from(q['options'])..shuffle();
+      }
+    });
+
     Future.delayed(const Duration(milliseconds: 500), () {
       _speak();
     });
@@ -385,17 +400,25 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
     await tts.speak(questions[currentQuestion]['audio']);
   }
 
-  void selectAnswer(String answer) {
+  void tapOption(String optionText) async {
     if (answered) return;
+    await tts.speak(optionText);
     setState(() {
-      selectedAnswer = answer;
+      selectedAnswer = optionText;
+    });
+  }
+
+  void confirmAnswer() {
+    if (selectedAnswer == null || answered) return;
+
+    setState(() {
       answered = true;
-      if (answer == questions[currentQuestion]['answer']) {
+      if (selectedAnswer == questions[currentQuestion]['answer']) {
         score++;
       }
     });
 
-    Future.delayed(const Duration(seconds: 1), () {
+    Future.delayed(const Duration(milliseconds: 1500), () {
       if (currentQuestion < questions.length - 1) {
         setState(() {
           currentQuestion++;
@@ -413,24 +436,33 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
     });
   }
 
+  // 第三步：完全替换你给的 _showResult
   void _showResult() {
-    ProgressService.saveProgress(
-      subject: 'english',
-      module: 'listening',
-      ageGroup: widget.ageGroup,
-      score: score,
-      totalQuestions: questions.length,
-      difficultyLevel: difficultyLevel,
-    );
+    final passed = score >= (questions.length * 0.7).ceil();
+    final newLevel = passed ? (difficultyLevel < 3 ? difficultyLevel + 1 : 3) : difficultyLevel;
+
+ProgressService.saveProgress(
+  subject: 'english',
+  module: 'listening',
+  ageGroup: widget.ageGroup,
+  score: score,
+  totalQuestions: questions.length,
+  difficultyLevel: difficultyLevel,
+  kidId: widget.kidId,
+);
+
+    ProgressService.updateDifficultyLevel('listening', widget.ageGroup, newLevel);
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Quiz Complete!',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          passed && newLevel > difficultyLevel ? '🌟 Level Up!' : 'Quiz Complete!',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -462,13 +494,31 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              score == questions.length
-                  ? 'Perfect! Amazing job!'
-                  : score >= 6
-                      ? 'Great work! Keep it up!'
-                      : 'Good try! Practice more!',
+              passed && newLevel > difficultyLevel
+                  ? 'Amazing! You unlocked Level $newLevel! 🎉'
+                  : score == questions.length
+                      ? 'Perfect! Amazing job!'
+                      : score >= (questions.length * 0.6).ceil()
+                          ? 'Great work! Keep it up!'
+                          : 'Good try! Score 7/10 to level up!',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Color(0xFF888888)),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Current Level: $difficultyLevel → Next: $newLevel',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFFFAB40),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -495,22 +545,35 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
   }
 
   Color _getOptionColor(String option) {
-    if (!answered) return const Color(0xFFFFAB40);
+    if (!answered) {
+      return option == selectedAnswer ? const Color(0xFFFF8FAB) : const Color(0xFFFFAB40);
+    }
     if (option == questions[currentQuestion]['answer']) {
       return const Color(0xFF4DD9C0);
     }
-    if (option == selectedAnswer) return Colors.redAccent;
+    if (option == selectedAnswer) {
+      return Colors.redAccent;
+    }
     return const Color(0xFFFFAB40);
   }
 
   @override
   Widget build(BuildContext context) {
+    // 第四步：在 build 开始处加上 Loading 状态的 Check
+    if (isLoadingDifficulty) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFFFAB40)),
+        ),
+      );
+    }
+
     final q = questions[currentQuestion];
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // 这里的 4 个背景装饰大圆圈已全部恢复正确格式，没有红线报错了！
           Positioned(
             top: -40,
             right: -40,
@@ -640,7 +703,7 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
                         String optionImage = option['image']!;
 
                         return GestureDetector(
-                          onTap: () => selectAnswer(optionText),
+                          onTap: () => tapOption(optionText),
                           child: Container(
                             decoration: BoxDecoration(
                               color: _getOptionColor(optionText),
@@ -689,6 +752,32 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
                       }).toList(),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: selectedAnswer != null && !answered ? confirmAnswer : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4DD9C0),
+                        disabledBackgroundColor: Colors.grey[300],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 4,
+                      ),
+                      child: const Text(
+                        'CONFIRM',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),

@@ -3,7 +3,8 @@ import '../../services/progress_service.dart';
 
 class ArithmeticGameScreen extends StatefulWidget {
   final String ageGroup;
-  const ArithmeticGameScreen({super.key, required this.ageGroup});
+  final String kidId;
+  const ArithmeticGameScreen({super.key, required this.ageGroup, required this.kidId});
 
   @override
   State<ArithmeticGameScreen> createState() => _ArithmeticGameScreenState();
@@ -14,13 +15,28 @@ class _ArithmeticGameScreenState extends State<ArithmeticGameScreen> {
   int score = 0;
   String? selectedAnswer;
   bool answered = false;
+  int difficultyLevel = 1;
+  bool isLoadingDifficulty = true;
 
   late List<Map<String, dynamic>> questions;
 
-  // 1. 根据年龄段动态生成 10 道不同难度的数学题
-  List<Map<String, dynamic>> _generateQuestions(String age) {
+  List<Map<String, dynamic>> _generateQuestions(String age, [int level = 1]) {
     switch (age) {
-      case '4-5': // 10 以内极其简单的加减法
+      case '4-5':
+        if (level >= 2) {
+          return [
+            {'display': '3 + 4 = ?', 'options': ['5', '6', '7', '8'], 'answer': '7'},
+            {'display': '6 + 2 = ?', 'options': ['6', '7', '8', '9'], 'answer': '8'},
+            {'display': '7 - 3 = ?', 'options': ['3', '4', '5', '6'], 'answer': '4'},
+            {'display': '5 + 4 = ?', 'options': ['7', '8', '9', '10'], 'answer': '9'},
+            {'display': '8 - 3 = ?', 'options': ['3', '4', '5', '6'], 'answer': '5'},
+            {'display': '4 + 5 = ?', 'options': ['7', '8', '9', '10'], 'answer': '9'},
+            {'display': '9 - 4 = ?', 'options': ['3', '4', '5', '6'], 'answer': '5'},
+            {'display': '6 + 3 = ?', 'options': ['7', '8', '9', '10'], 'answer': '9'},
+            {'display': '7 - 2 = ?', 'options': ['3', '4', '5', '6'], 'answer': '5'},
+            {'display': '5 + 5 = ?', 'options': ['8', '9', '10', '11'], 'answer': '10'},
+          ];
+        }
         return [
           {'display': '1 + 1 = ?', 'options': ['1', '2', '3', '4'], 'answer': '2'},
           {'display': '2 + 1 = ?', 'options': ['2', '3', '4', '5'], 'answer': '3'},
@@ -33,7 +49,21 @@ class _ArithmeticGameScreenState extends State<ArithmeticGameScreen> {
           {'display': '5 - 3 = ?', 'options': ['1', '2', '3', '4'], 'answer': '2'},
           {'display': '0 + 3 = ?', 'options': ['1', '2', '3', '4'], 'answer': '3'},
         ];
-      case '5-6': // 15 以内进阶加减法
+      case '5-6':
+        if (level >= 2) {
+          return [
+            {'display': '11 + 4 = ?', 'options': ['13', '14', '15', '16'], 'answer': '15'},
+            {'display': '18 - 5 = ?', 'options': ['11', '12', '13', '14'], 'answer': '13'},
+            {'display': '13 + 6 = ?', 'options': ['17', '18', '19', '20'], 'answer': '19'},
+            {'display': '20 - 7 = ?', 'options': ['11', '12', '13', '14'], 'answer': '13'},
+            {'display': '14 + 5 = ?', 'options': ['17', '18', '19', '20'], 'answer': '19'},
+            {'display': '17 - 8 = ?', 'options': ['7', '8', '9', '10'], 'answer': '9'},
+            {'display': '12 + 7 = ?', 'options': ['17', '18', '19', '20'], 'answer': '19'},
+            {'display': '19 - 6 = ?', 'options': ['11', '12', '13', '14'], 'answer': '13'},
+            {'display': '15 + 4 = ?', 'options': ['17', '18', '19', '20'], 'answer': '19'},
+            {'display': '20 - 9 = ?', 'options': ['9', '10', '11', '12'], 'answer': '11'},
+          ];
+        }
         return [
           {'display': '5 + 4 = ?', 'options': ['7', '8', '9', '10'], 'answer': '9'},
           {'display': '10 - 2 = ?', 'options': ['6', '7', '8', '9'], 'answer': '8'},
@@ -46,19 +76,33 @@ class _ArithmeticGameScreenState extends State<ArithmeticGameScreen> {
           {'display': '8 + 6 = ?', 'options': ['12', '13', '14', '15'], 'answer': '14'},
           {'display': '11 - 6 = ?', 'options': ['4', '5', '6', '7'], 'answer': '5'},
         ];
-      case '6-7': // 20 以内加减法与极其基础的乘法入门
+      case '6-7':
       default:
+        if (level >= 2) {
+          return [
+            {'display': '25 + 5 = ?', 'options': ['28', '29', '30', '31'], 'answer': '30'},
+            {'display': '30 - 12 = ?', 'options': ['16', '17', '18', '19'], 'answer': '18'},
+            {'display': '22 + 8 = ?', 'options': ['28', '29', '30', '31'], 'answer': '30'},
+            {'display': '35 - 15 = ?', 'options': ['18', '19', '20', '21'], 'answer': '20'},
+            {'display': '18 + 12 = ?', 'options': ['28', '29', '30', '31'], 'answer': '30'},
+            {'display': '40 - 18 = ?', 'options': ['20', '21', '22', '23'], 'answer': '22'},
+            {'display': '24 + 6 = ?', 'options': ['28', '29', '30', '31'], 'answer': '30'},
+            {'display': '33 - 13 = ?', 'options': ['18', '19', '20', '21'], 'answer': '20'},
+            {'display': '27 + 3 = ?', 'options': ['28', '29', '30', '31'], 'answer': '30'},
+            {'display': '45 - 25 = ?', 'options': ['18', '19', '20', '21'], 'answer': '20'},
+          ];
+        }
         return [
           {'display': '12 + 7 = ?', 'options': ['17', '18', '19', '20'], 'answer': '19'},
           {'display': '20 - 8 = ?', 'options': ['10', '11', '12', '13'], 'answer': '12'},
-          {'display': '2 x 3 = ?', 'options': ['4', '5', '6', '7'], 'answer': '6'},
           {'display': '15 + 4 = ?', 'options': ['18', '19', '20', '21'], 'answer': '19'},
           {'display': '18 - 9 = ?', 'options': ['7', '8', '9', '10'], 'answer': '9'},
-          {'display': '3 x 4 = ?', 'options': ['10', '11', '12', '13'], 'answer': '12'},
           {'display': '14 + 6 = ?', 'options': ['18', '19', '20', '21'], 'answer': '20'},
-          {'display': '2 x 5 = ?', 'options': ['8', '9', '10', '11'], 'answer': '10'},
           {'display': '16 - 7 = ?', 'options': ['7', '8', '9', '10'], 'answer': '9'},
-          {'display': '4 x 2 = ?', 'options': ['6', '7', '8', '9'], 'answer': '8'},
+          {'display': '13 + 5 = ?', 'options': ['16', '17', '18', '19'], 'answer': '18'},
+          {'display': '19 - 6 = ?', 'options': ['11', '12', '13', '14'], 'answer': '13'},
+          {'display': '11 + 9 = ?', 'options': ['18', '19', '20', '21'], 'answer': '20'},
+          {'display': '17 - 8 = ?', 'options': ['7', '8', '9', '10'], 'answer': '9'},
         ];
     }
   }
@@ -66,13 +110,20 @@ class _ArithmeticGameScreenState extends State<ArithmeticGameScreen> {
   @override
   void initState() {
     super.initState();
-    // 2. 初始化时装载题库
-    questions = _generateQuestions(widget.ageGroup);
-    
-    // 3. 批量随机打乱 10 道题的四个选项顺序
-    for (var q in questions) {
-      q['options'] = List<String>.from(q['options'])..shuffle();
-    }
+    _loadDifficulty();
+  }
+
+  Future<void> _loadDifficulty() async {
+    final level = await ProgressService.getDifficultyLevel(
+        'arithmetic', widget.ageGroup);
+    setState(() {
+      difficultyLevel = level;
+      isLoadingDifficulty = false;
+      questions = _generateQuestions(widget.ageGroup, difficultyLevel);
+      for (var q in questions) {
+        q['options'] = List<String>.from(q['options'])..shuffle();
+      }
+    });
   }
 
   void selectAnswer(String answer) {
@@ -91,7 +142,6 @@ class _ArithmeticGameScreenState extends State<ArithmeticGameScreen> {
           currentQuestion++;
           selectedAnswer = null;
           answered = false;
-          // 保留你的原版逻辑：切题时确保下一题的选项也被安全打乱
           questions[currentQuestion]['options'] =
               List<String>.from(questions[currentQuestion]['options'])..shuffle();
         });
@@ -102,22 +152,34 @@ class _ArithmeticGameScreenState extends State<ArithmeticGameScreen> {
   }
 
   void _showResult() {
+    final passed = score >= (questions.length * 0.7).ceil();
+    final newLevel = passed
+        ? (difficultyLevel < 2 ? difficultyLevel + 1 : 2)
+        : difficultyLevel;
+
     ProgressService.saveProgress(
       subject: 'arithmetic',
       module: 'arithmetic',
       ageGroup: widget.ageGroup,
       score: score,
       totalQuestions: questions.length,
+      kidId: widget.kidId,
     );
+
+    ProgressService.updateDifficultyLevel(
+        'arithmetic', widget.ageGroup, newLevel);
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Quiz Complete!',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          passed && newLevel > difficultyLevel ? '🌟 Level Up!' : 'Quiz Complete!',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -149,13 +211,32 @@ class _ArithmeticGameScreenState extends State<ArithmeticGameScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              score == questions.length
-                  ? 'Perfect math!'
-                  : score >= 6 // 从原本的 3 题改为 6 题及格 (60%)
-                      ? 'Great counting!'
-                      : 'Keep practicing!',
+              passed && newLevel > difficultyLevel
+                  ? 'Amazing! You unlocked Level $newLevel! 🎉'
+                  : score == questions.length
+                      ? 'Perfect math!'
+                      : score >= (questions.length * 0.6).ceil()
+                          ? 'Great counting!'
+                          : 'Score 7/10 to level up!',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Color(0xFF888888)),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3F6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Level $difficultyLevel ${newLevel > difficultyLevel ? "→ Level $newLevel 🔓" : "(Score 7/10 to level up!)"}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFFF8FAB),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -192,6 +273,15 @@ class _ArithmeticGameScreenState extends State<ArithmeticGameScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoadingDifficulty) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF8FAB)),
+        ),
+      );
+    }
+
     final q = questions[currentQuestion];
     return Scaffold(
       backgroundColor: Colors.white,
@@ -274,10 +364,31 @@ class _ArithmeticGameScreenState extends State<ArithmeticGameScreen> {
                     }),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    'Question ${currentQuestion + 1} of ${questions.length}',
-                    style: const TextStyle(
-                        fontSize: 13, color: Color(0xFF888888)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Question ${currentQuestion + 1} of ${questions.length}',
+                        style: const TextStyle(
+                            fontSize: 13, color: Color(0xFF888888)),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3F6),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'Level $difficultyLevel',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFFF8FAB),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 32),
                   const Center(

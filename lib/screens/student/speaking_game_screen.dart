@@ -5,7 +5,8 @@ import '../../services/progress_service.dart';
 
 class SpeakingGameScreen extends StatefulWidget {
   final String ageGroup;
-  const SpeakingGameScreen({super.key, required this.ageGroup});
+  final String kidId;
+  const SpeakingGameScreen({super.key, required this.ageGroup, required this.kidId});
 
   @override
   State<SpeakingGameScreen> createState() => _SpeakingGameScreenState();
@@ -117,7 +118,8 @@ class _SpeakingGameScreenState extends State<SpeakingGameScreen> {
       module: 'speaking',
       ageGroup: widget.ageGroup,
       score: score,
-      totalQuestions: questions.length, // 替换为 questions.length
+      totalQuestions: questions.length, 
+      kidId: widget.kidId,
     );
 
     showDialog(

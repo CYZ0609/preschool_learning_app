@@ -8,7 +8,8 @@ class ProgressService {
     required String ageGroup,
     required int score,
     required int totalQuestions,
-    int difficultyLevel = 1, // 1. 根据截图要求，新增了 difficultyLevel 可选参数，并设定默认值为 1
+    int difficultyLevel = 1,
+    String? kidId,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -21,16 +22,40 @@ class ProgressService {
             : 1;
 
     await FirebaseFirestore.instance.collection('progress').add({
-      'studentUid': user.uid,
+      'studentUid': kidId ?? user.uid,
       'subject': subject,
       'module': module,
       'ageGroup': ageGroup,
       'score': score,
       'totalQuestions': totalQuestions,
       'accuracy': accuracy,
-      'difficultyLevel': difficultyLevel, // 2. 这里修改为了写入你传进来的动态难度级别
+      'difficultyLevel': difficultyLevel,
       'starsEarned': starsEarned,
       'sessionDate': Timestamp.now(),
     });
+  }
+
+  static Future<int> getDifficultyLevel(String module, String ageGroup) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 1;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('difficulty')
+        .doc('${user.uid}_${module}_$ageGroup')
+        .get();
+
+    if (doc.exists) return doc.data()?['level'] ?? 1;
+    return 1;
+  }
+
+  static Future<void> updateDifficultyLevel(
+      String module, String ageGroup, int newLevel) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('difficulty')
+        .doc('${user.uid}_${module}_$ageGroup')
+        .set({'level': newLevel});
   }
 }

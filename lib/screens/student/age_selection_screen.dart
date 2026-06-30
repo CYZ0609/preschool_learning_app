@@ -284,7 +284,7 @@ class SubjectMenuScreen extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ListeningGameScreen(ageGroup: ageGroup),
+                        builder: (_) => ListeningGameScreen(ageGroup: ageGroup, kidId: ''),
                       ),
                     ),
                   ),
@@ -297,7 +297,7 @@ class SubjectMenuScreen extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => SpeakingGameScreen(ageGroup: ageGroup),
+                        builder: (_) => ListeningGameScreen(ageGroup: ageGroup, kidId: ''),
                       ),
                     ),
                   ),
@@ -310,7 +310,7 @@ class SubjectMenuScreen extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ReadingGameScreen(ageGroup: ageGroup),
+                        builder: (_) => ListeningGameScreen(ageGroup: ageGroup, kidId: ''),
                       ),
                     ),
                   ),
@@ -323,7 +323,7 @@ class SubjectMenuScreen extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => WritingGameScreen(ageGroup: ageGroup),
+                        builder: (_) => ListeningGameScreen(ageGroup: ageGroup, kidId: ''),
                       ),
                     ),
                   ),
@@ -336,7 +336,7 @@ class SubjectMenuScreen extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ArithmeticGameScreen(ageGroup: ageGroup),
+                        builder: (_) => ListeningGameScreen(ageGroup: ageGroup, kidId: ''),
                       ),
                     ),
                   ),

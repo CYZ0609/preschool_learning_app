@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../services/screen_time_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/screen_time_service.dart';
 
 class ScreenTimeScreen extends StatefulWidget {
   const ScreenTimeScreen({super.key});
@@ -11,6 +11,10 @@ class ScreenTimeScreen extends StatefulWidget {
 }
 
 class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
+  final TextEditingController _limitController = TextEditingController();
+  List<Map<String, dynamic>> children = [];
+  String? selectedKidId;
+  String? selectedKidName;
   Map<String, dynamic> todayData = {};
   bool isLoading = true;
   int limitMinutes = 30;
@@ -18,11 +22,38 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _loadChildren();
   }
 
-  Future<void> _loadData() async {
-    final data = await ScreenTimeService.getTodayScreenTime();
+  Future<void> _loadChildren() async {
+    final parentUid = FirebaseAuth.instance.currentUser!.uid;
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(parentUid)
+        .collection('children')
+        .get();
+
+    final kids = snapshot.docs
+        .map((doc) => {
+              'id': doc.id,
+              'name': doc.data()['name'] ?? 'Unknown',
+            })
+        .toList();
+
+    setState(() {
+      children = kids;
+      if (kids.isNotEmpty) {
+        selectedKidId = kids[0]['id'];
+        selectedKidName = kids[0]['name'];
+      }
+    });
+
+    await _loadScreenTime();
+  }
+
+  Future<void> _loadScreenTime() async {
+    if (selectedKidId == null) return;
+    final data = await ScreenTimeService.getTodayScreenTime(selectedKidId!);
     setState(() {
       todayData = data;
       limitMinutes = data['limitMinutes'] ?? 30;
@@ -31,21 +62,18 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   }
 
   Future<void> _updateLimit(int newLimit) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final today = DateTime.now();
-    final dateStr =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    final docId = '${user.uid}_$dateStr';
-
-    await FirebaseFirestore.instance
-        .collection('screenTime')
-        .doc(docId)
-        .set({'limitMinutes': newLimit}, SetOptions(merge: true));
-
-    setState(() => limitMinutes = newLimit);
-  }
+  if (selectedKidId == null) return;
+  await ScreenTimeService.updateLimit(selectedKidId!, newLimit);
+  setState(() => limitMinutes = newLimit);
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('Daily limit set to $newLimit minutes ✅'),
+      backgroundColor: const Color(0xFF4DD9C0),
+      duration: const Duration(seconds: 2),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +106,39 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Child selector
+                  if (children.length > 1)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3F6),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedKidId,
+                          isExpanded: true,
+                          icon: const Icon(Icons.arrow_drop_down,
+                              color: Color(0xFFFF8FAB)),
+                          items: children.map((child) {
+                            return DropdownMenuItem<String>(
+                              value: child['id'],
+                              child: Text(child['name']),
+                            );
+                          }).toList(),
+                          onChanged: (val) async {
+                            setState(() {
+                              selectedKidId = val;
+                              selectedKidName = children
+                                  .firstWhere((c) => c['id'] == val)['name'];
+                              isLoading = true;
+                            });
+                            await _loadScreenTime();
+                          },
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
                   // Today's usage card
                   Container(
                     width: double.infinity,
@@ -88,9 +149,9 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                     ),
                     child: Column(
                       children: [
-                        const Text(
-                          "Today's Usage",
-                          style: TextStyle(
+                        Text(
+                          "${selectedKidName ?? 'Child'}'s Usage Today",
+                          style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF333333)),
@@ -146,41 +207,100 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                     ),
                   ),
                   const SizedBox(height: 28),
-                  // Set limit
-                  const Text('Set Daily Limit',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF333333))),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [15, 30, 45, 60].map((mins) {
-                      final isSelected = limitMinutes == mins;
-                      return GestureDetector(
-                        onTap: () => _updateLimit(mins),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFFFF8FAB)
-                                : const Color(0xFFFFF3F6),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Text(
-                            '$mins min',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: isSelected
-                                  ? Colors.white
-                                  : const Color(0xFF888888),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    const Text('Set Daily Limit',
+        style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF333333))),
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4DD9C0).withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        'Current: $limitMinutes min',
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF4DD9C0),
+        ),
+      ),
+    ),
+  ],
+),
+const SizedBox(height: 16),
+Row(
+  children: [
+    Expanded(
+      child: TextField(
+        controller: _limitController,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          hintText: 'Enter minutes',
+          suffixText: 'min',
+          filled: true,
+          fillColor: const Color(0xFFFFF3F6),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    ),
+    const SizedBox(width: 12),
+    ElevatedButton(
+      onPressed: () {
+        final value = int.tryParse(_limitController.text);
+        if (value != null && value > 0) {
+          _updateLimit(value);
+        }
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFFF8FAB),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 20, vertical: 18),
+      ),
+      child: const Text('Set',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+    ),
+  ],
+),
+const SizedBox(height: 12),
+Wrap(
+  spacing: 8,
+  children: [15, 30, 45, 60].map((mins) {
+    return GestureDetector(
+      onTap: () => _updateLimit(mins),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: limitMinutes == mins
+              ? const Color(0xFFFF8FAB)
+              : const Color(0xFFFFF3F6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          '$mins',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: limitMinutes == mins
+                ? Colors.white
+                : const Color(0xFF888888),
+          ),
+        ),
+      ),
+    );
+  }).toList(),
+),
                 ],
               ),
             ),
