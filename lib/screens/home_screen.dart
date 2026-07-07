@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'parent_login_screen.dart';
 import 'kid_selection_screen.dart';
+import 'teacher_login_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -126,7 +127,7 @@ class HomeScreen extends StatelessWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const ParentLoginScreen(),
+                          builder: (_) => const TeacherLoginScreen(),
                         ),
                       ),
                     ),

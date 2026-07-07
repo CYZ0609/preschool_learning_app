@@ -7,6 +7,7 @@ import 'writing_game_screen.dart';
 import 'arithmetic_game_screen.dart';
 import '../../services/screen_time_service.dart';
 import 'dart:async';
+import 'writing_tracing_screen.dart';
 
 class StudentHome extends StatefulWidget {
   final String kidName;
@@ -220,6 +221,48 @@ void _navigateToGame(BuildContext context, String subject) {
             Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
             const Spacer(),
             Icon(Icons.arrow_forward_ios_rounded, color: color, size: 16),
+            const SizedBox(height: 12),
+GestureDetector(
+  onTap: () => Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => WritingTracingScreen(
+        word: 'CAT',
+        ageGroup: widget.ageGroup,
+      ),
+    ),
+  ),
+  child: Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    decoration: BoxDecoration(
+      color: const Color(0xFF4DD9C0).withOpacity(0.12),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFF4DD9C0),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.draw_rounded, color: Colors.white, size: 24),
+        ),
+        const SizedBox(width: 16),
+        const Text('Test Tracing',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF4DD9C0))),
+        const Spacer(),
+        const Icon(Icons.arrow_forward_ios_rounded,
+            color: Color(0xFF4DD9C0), size: 16),
+      ],
+    ),
+  ),
+),
           ],
         ),
       ),

@@ -20,36 +20,35 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
   bool isLoading = false;
 
   Future<void> register() async {
-    if (nameController.text.trim().isEmpty ||
-        emailController.text.trim().isEmpty ||
-        passwordController.text.trim().isEmpty ||
-        childNameController.text.trim().isEmpty) {
-      setState(() => errorMessage = 'Please fill in all fields');
-      return;
-    }
+  if (nameController.text.trim().isEmpty ||
+      emailController.text.trim().isEmpty ||
+      passwordController.text.trim().isEmpty) {
+    setState(() => errorMessage = 'Please fill in all required fields');
+    return;
+  }
 
-    setState(() => isLoading = true);
-    try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
+  setState(() => isLoading = true);
+  try {
+    final credential = await FirebaseAuth.instance
+        .createUserWithEmailAndPassword(
+      email: emailController.text.trim(),
+      password: passwordController.text.trim(),
+    );
 
-      final parentUid = credential.user!.uid;
+    final parentUid = credential.user!.uid;
 
-      // Save parent info
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(parentUid)
-          .set({
-        'name': nameController.text.trim(),
-        'email': emailController.text.trim(),
-        'role': 'parent',
-        'createdAt': DateTime.now(),
-      });
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(parentUid)
+        .set({
+      'name': nameController.text.trim(),
+      'email': emailController.text.trim(),
+      'role': 'parent',
+      'createdAt': DateTime.now(),
+    });
 
-      // Save first child
+    // Only add child if name is filled
+    if (childNameController.text.trim().isNotEmpty) {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(parentUid)
@@ -59,19 +58,34 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
         'ageGroup': selectedAgeGroup,
         'createdAt': DateTime.now(),
       });
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const ParentHome()),
-        (route) => false,
-      );
-    } catch (e) {
-      setState(() {
-        errorMessage = 'Registration failed. Try again.';
-        isLoading = false;
-      });
     }
+
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const ParentHome()),
+      (route) => false,
+    );
+  } on FirebaseAuthException catch (e) {
+    setState(() {
+      if (e.code == 'email-already-in-use') {
+        errorMessage = 'This email is already registered. Please login instead.';
+      } else if (e.code == 'weak-password') {
+        errorMessage = 'Password should be at least 6 characters.';
+      } else if (e.code == 'invalid-email') {
+        errorMessage = 'Please enter a valid email address.';
+      } else {
+        errorMessage = 'Registration failed. Please try again.';
+      }
+      isLoading = false;
+    });
+  } catch (e) {
+    setState(() {
+      errorMessage = 'Something went wrong. Please try again.';
+      isLoading = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -224,10 +238,13 @@ class _ParentRegisterScreenState extends State<ParentRegisterScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-                        const Text('First Child Info',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFFF8FAB))),
+                        const Text('First Child Info (Optional)',
+    style: TextStyle(
+        fontWeight: FontWeight.bold,
+        color: Color(0xFFFF8FAB))),
+const SizedBox(height: 4),
+const Text('You can add this later from the dashboard',
+    style: TextStyle(fontSize: 12, color: Color(0xFF888888))),
                         const SizedBox(height: 12),
                         TextField(
                           controller: childNameController,

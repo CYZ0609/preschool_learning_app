@@ -11,55 +11,49 @@ class WritingGameScreen extends StatefulWidget {
 }
 
 class _WritingGameScreenState extends State<WritingGameScreen> {
-  int currentQuestion = 0;
+  int currentItem = 0;
   int score = 0;
-  String? selectedAnswer;
-  bool answered = false;
+  List<Offset?> userPoints = [];
+  bool checked = false;
+  double coverage = 0.0;
 
-  late List<Map<String, dynamic>> questions;
+  // true for 4-5 (letters, no picture needed), false for 5-7 (words + picture)
+  late bool isLetterMode;
+  late List<Map<String, String>> items;
 
-  // 1. 扩充题库：增加 image 字段，实现看图拼写！
-  List<Map<String, dynamic>> _generateQuestions(String age) {
+  // 4-5: just the alphabet, no picture required — keeps it simple
+  List<Map<String, String>> _generateLetters() {
+    return List.generate(26, (i) {
+      final letter = String.fromCharCode(65 + i); // A-Z
+      return {'word': letter, 'image': ''};
+    });
+  }
+
+  // 5-7: simple words with a picture for context
+  List<Map<String, String>> _generateWords(String age) {
     switch (age) {
-      case '4-5':
-        return [
-          {'display': 'C _ T', 'image': 'assets/images/cat.png', 'answer': 'A', 'options': ['A', 'E', 'I', 'O']},
-          {'display': 'D _ G', 'image': 'assets/images/dog.png', 'answer': 'O', 'options': ['A', 'O', 'U', 'I']},
-          {'display': 'S _ N', 'image': 'assets/images/sun.png', 'answer': 'U', 'options': ['A', 'E', 'U', 'O']},
-          {'display': 'H _ T', 'image': 'assets/images/hat.png', 'answer': 'A', 'options': ['E', 'A', 'I', 'O']},
-          {'display': 'P _ G', 'image': 'assets/images/pig.png', 'answer': 'I', 'options': ['A', 'E', 'I', 'O']},
-          {'display': 'C _ W', 'image': 'assets/images/cow.png', 'answer': 'O', 'options': ['A', 'O', 'U', 'I']},
-          {'display': 'B _ D', 'image': 'assets/images/bird.png', 'answer': 'I', 'options': ['A', 'E', 'I', 'O']},
-          {'display': 'F _ G', 'image': 'assets/images/frog.png', 'answer': 'O', 'options': ['A', 'O', 'U', 'I']},
-          {'display': 'L _ N', 'image': 'assets/images/lion.png', 'answer': 'I', 'options': ['A', 'E', 'I', 'O']},
-          {'display': 'C _ P', 'image': 'assets/images/cup.png', 'answer': 'U', 'options': ['A', 'E', 'U', 'O']},
-        ];
       case '5-6':
         return [
-          {'display': 'A P P _ E', 'image': 'assets/images/apple.png', 'answer': 'L', 'options': ['L', 'B', 'N', 'T']},
-          {'display': 'R A B _ I T', 'image': 'assets/images/rabbit.png', 'answer': 'B', 'options': ['B', 'P', 'D', 'M']},
-          {'display': 'T A _ L E', 'image': 'assets/images/table.png', 'answer': 'B', 'options': ['B', 'P', 'L', 'D']},
-          {'display': 'W A _ E R', 'image': 'assets/images/water.png', 'answer': 'T', 'options': ['T', 'D', 'N', 'P']},
-          {'display': 'B A N A _ A', 'image': 'assets/images/banana.png', 'answer': 'N', 'options': ['N', 'M', 'L', 'P']},
-          {'display': 'M O N _ E Y', 'image': 'assets/images/monkey.png', 'answer': 'K', 'options': ['K', 'C', 'T', 'N']},
-          {'display': 'P E N _ I L', 'image': 'assets/images/pencil.png', 'answer': 'C', 'options': ['C', 'K', 'S', 'T']},
-          {'display': 'D O C _ O R', 'image': 'assets/images/doctor.png', 'answer': 'T', 'options': ['T', 'D', 'N', 'P']},
-          {'display': 'F L O _ E R', 'image': 'assets/images/flower.png', 'answer': 'W', 'options': ['W', 'R', 'T', 'L']},
-          {'display': 'P _ R P L E', 'image': 'assets/images/purple.png', 'answer': 'U', 'options': ['U', 'A', 'E', 'O']},
+          {'word': 'CAT', 'image': 'assets/images/cat.png'},
+          {'word': 'DOG', 'image': 'assets/images/dog.png'},
+          {'word': 'SUN', 'image': 'assets/images/sun.png'},
+          {'word': 'HAT', 'image': 'assets/images/hat.png'},
+          {'word': 'PIG', 'image': 'assets/images/pig.png'},
+          {'word': 'COW', 'image': 'assets/images/cow.png'},
+          {'word': 'BIRD', 'image': 'assets/images/bird.png'},
+          {'word': 'FROG', 'image': 'assets/images/frog.png'},
         ];
       case '6-7':
       default:
         return [
-          {'display': 'E L E _ H A N T', 'image': 'assets/images/elephant.png', 'answer': 'P', 'options': ['P', 'B', 'F', 'V']},
-          {'display': 'B U T T E R _ L Y', 'image': 'assets/images/butterfly.png', 'answer': 'F', 'options': ['F', 'P', 'B', 'V']},
-          {'display': 'T R _ A N G L E', 'image': 'assets/images/triangle.png', 'answer': 'I', 'options': ['I', 'E', 'A', 'O']},
-          {'display': 'L I B R A _ Y', 'image': 'assets/images/library.png', 'answer': 'R', 'options': ['R', 'L', 'N', 'M']},
-          {'display': 'T I G _ R', 'image': 'assets/images/tiger.png', 'answer': 'E', 'options': ['E', 'A', 'I', 'O']},
-          {'display': 'Z E B _ A', 'image': 'assets/images/zebra.png', 'answer': 'R', 'options': ['R', 'L', 'N', 'M']},
-          {'display': 'P I _ O T', 'image': 'assets/images/pilot.png', 'answer': 'L', 'options': ['L', 'R', 'N', 'M']},
-          {'display': 'N U _ S E', 'image': 'assets/images/nurse.png', 'answer': 'R', 'options': ['R', 'L', 'N', 'M']},
-          {'display': 'O R A _ G E', 'image': 'assets/images/orange.png', 'answer': 'N', 'options': ['N', 'M', 'L', 'P']},
-          {'display': 'R U B _ E R', 'image': 'assets/images/rubber.png', 'answer': 'B', 'options': ['B', 'P', 'D', 'M']},
+          {'word': 'APPLE', 'image': 'assets/images/apple.png'},
+          {'word': 'RABBIT', 'image': 'assets/images/rabbit.png'},
+          {'word': 'TABLE', 'image': 'assets/images/table.png'},
+          {'word': 'WATER', 'image': 'assets/images/water.png'},
+          {'word': 'BANANA', 'image': 'assets/images/banana.png'},
+          {'word': 'MONKEY', 'image': 'assets/images/monkey.png'},
+          {'word': 'PENCIL', 'image': 'assets/images/pencil.png'},
+          {'word': 'FLOWER', 'image': 'assets/images/flower.png'},
         ];
     }
   }
@@ -67,35 +61,72 @@ class _WritingGameScreenState extends State<WritingGameScreen> {
   @override
   void initState() {
     super.initState();
-    questions = _generateQuestions(widget.ageGroup);
-    for (var q in questions) {
-      q['options'] = List<String>.from(q['options'])..shuffle();
-    }
+    // 4-5 -> letters only. 5-6 and 6-7 -> simple words with a picture.
+    isLetterMode = widget.ageGroup == '4-5';
+    items = isLetterMode ? _generateLetters() : _generateWords(widget.ageGroup);
   }
 
-  void selectAnswer(String answer) {
-    if (answered) return;
+  void _onPanUpdate(DragUpdateDetails details) {
+    final box = context.findRenderObject() as RenderBox;
+    final local = box.globalToLocal(details.globalPosition);
     setState(() {
-      selectedAnswer = answer;
-      answered = true;
-      if (answer == questions[currentQuestion]['answer']) {
-        score++;
-      }
+      userPoints.add(local);
     });
+  }
 
-    Future.delayed(const Duration(seconds: 1), () {
-      if (currentQuestion < questions.length - 1) {
-        setState(() {
-          currentQuestion++;
-          selectedAnswer = null;
-          answered = false;
-          questions[currentQuestion]['options'] =
-              List<String>.from(questions[currentQuestion]['options'])..shuffle();
-        });
-      } else {
-        _showResult();
-      }
+  void _onPanEnd(DragEndDetails details) {
+    setState(() {
+      userPoints.add(null); // stroke break
     });
+  }
+
+  void _clearDrawing() {
+    setState(() {
+      userPoints = [];
+      checked = false;
+      coverage = 0.0;
+    });
+  }
+
+  // Compares user strokes against the guide text's sampled points.
+  void _checkTracing() {
+    final text = items[currentItem]['word']!;
+    final guidePoints = _GuideTextPainter(text: text, isLetterMode: isLetterMode).samplePoints();
+
+    if (userPoints.where((p) => p != null).isEmpty || guidePoints.isEmpty) {
+      setState(() {
+        checked = true;
+        coverage = 0.0;
+      });
+      return;
+    }
+
+    int covered = 0;
+    final tolerance = isLetterMode ? 30.0 : 22.0;
+    for (final gp in guidePoints) {
+      final hit = userPoints.any((up) => up != null && (up - gp).distance < tolerance);
+      if (hit) covered++;
+    }
+
+    final pct = covered / guidePoints.length;
+    setState(() {
+      checked = true;
+      coverage = pct;
+      if (pct >= 0.55) score++;
+    });
+  }
+
+  void _nextItem() {
+    if (currentItem < items.length - 1) {
+      setState(() {
+        currentItem++;
+        userPoints = [];
+        checked = false;
+        coverage = 0.0;
+      });
+    } else {
+      _showResult();
+    }
   }
 
   void _showResult() {
@@ -104,7 +135,7 @@ class _WritingGameScreenState extends State<WritingGameScreen> {
       module: 'writing',
       ageGroup: widget.ageGroup,
       score: score,
-      totalQuestions: questions.length,
+      totalQuestions: items.length,
       kidId: widget.kidId,
     );
 
@@ -113,43 +144,36 @@ class _WritingGameScreenState extends State<WritingGameScreen> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Quiz Complete!',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Tracing Complete!',
+            textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '$score / ${questions.length}',
-              style: const TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFFFAB40),
-              ),
+              '$score / ${items.length}',
+              style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Color(0xFFFFAB40)),
             ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(3, (i) {
-                final starsEarned = score == questions.length
+                final starsEarned = score == items.length
                     ? 3
-                    : score >= (questions.length * 0.6).ceil()
+                    : score >= (items.length * 0.6).ceil()
                         ? 2
                         : 1;
                 return Icon(
                   Icons.star_rounded,
                   size: 40,
-                  color: i < starsEarned
-                      ? const Color(0xFFFFC107)
-                      : const Color(0xFFE0E0E0),
+                  color: i < starsEarned ? const Color(0xFFFFC107) : const Color(0xFFE0E0E0),
                 );
               }),
             ),
             const SizedBox(height: 8),
             Text(
-              score == questions.length
-                  ? 'Perfect spelling!'
-                  : score >= 6
+              score == items.length
+                  ? (isLetterMode ? 'Perfect letters!' : 'Perfect spelling!')
+                  : score >= (items.length * 0.6).ceil()
                       ? 'Great writing!'
                       : 'Keep practicing!',
               textAlign: TextAlign.center,
@@ -167,11 +191,9 @@ class _WritingGameScreenState extends State<WritingGameScreen> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFAB40),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Back to Menu',
-                  style: TextStyle(color: Colors.white)),
+              child: const Text('Back to Menu', style: TextStyle(color: Colors.white)),
             ),
           ),
         ],
@@ -179,68 +201,131 @@ class _WritingGameScreenState extends State<WritingGameScreen> {
     );
   }
 
-  Color _getOptionColor(String option) {
-    if (!answered) return const Color(0xFFFFAB40);
-    if (option == questions[currentQuestion]['answer']) {
-      return const Color(0xFF4DD9C0);
-    }
-    if (option == selectedAnswer) return Colors.redAccent;
-    return const Color(0xFFFFAB40);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final q = questions[currentQuestion];
+    final item = items[currentItem];
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
           Positioned(top: -40, right: -40, child: Container(width: 180, height: 180, decoration: const BoxDecoration(color: Color(0xFFFFB7C5), shape: BoxShape.circle))),
-          Positioned(top: 20, right: 20, child: Container(width: 120, height: 120, decoration: const BoxDecoration(color: Color(0xFFFF8FAB), shape: BoxShape.circle))),
           Positioned(bottom: -40, left: -40, child: Container(width: 180, height: 180, decoration: const BoxDecoration(color: Color(0xFF80DEEA), shape: BoxShape.circle))),
-          Positioned(bottom: 20, left: 20, child: Container(width: 120, height: 120, decoration: const BoxDecoration(color: Color(0xFF4DD9C0), shape: BoxShape.circle))),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Align(alignment: Alignment.topLeft, child: Icon(Icons.arrow_back_ios_rounded, color: Color(0xFF333333))),
-                  ),
-                  const SizedBox(height: 16),
                   Row(
-                    children: List.generate(questions.length, (i) {
-                      return Expanded(child: Container(margin: const EdgeInsets.symmetric(horizontal: 3), height: 8, decoration: BoxDecoration(color: i <= currentQuestion ? const Color(0xFFFFAB40) : const Color(0xFFEEEEEE), borderRadius: BorderRadius.circular(4))));
-                    }),
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(Icons.arrow_back_ios_rounded, color: Color(0xFF333333)),
+                      ),
+                      const Spacer(),
+                      Text('${currentItem + 1} / ${items.length}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF888888))),
+                    ],
                   ),
-                  const SizedBox(height: 32),
-                  // 🌟 加入图片框 🌟
-                  Container(
-                    width: 160,
-                    height: 160,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
-                    child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.asset(q['image'], fit: BoxFit.contain)),
-                  ),
-                  const SizedBox(height: 32),
-                  Text(q['display'], style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Color(0xFF333333), letterSpacing: 8)),
-                  const SizedBox(height: 40),
-                  GridView.count(
-                    shrinkWrap: true,
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1,
-                    children: (q['options'] as List<String>).map((option) {
-                      return GestureDetector(
-                        onTap: () => selectAnswer(option),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: List.generate(items.length, (i) {
+                      return Expanded(
                         child: Container(
-                          decoration: BoxDecoration(color: _getOptionColor(option), borderRadius: BorderRadius.circular(16)),
-                          child: Center(child: Text(option, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white))),
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: i <= currentItem ? const Color(0xFFFFAB40) : const Color(0xFFEEEEEE),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
                       );
-                    }).toList(),
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Only show a picture in word mode (5-7). Letters skip the image.
+                  if (!isLetterMode) ...[
+                    Container(
+                      width: 100,
+                      height: 100,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))],
+                      ),
+                      child: ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.asset(item['image']!, fit: BoxFit.contain)),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  Text(
+                    isLetterMode ? 'Trace the letter!' : 'Trace the word!',
+                    style: const TextStyle(fontSize: 16, color: Color(0xFF888888), fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF8EF),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: const Color(0xFFFFE0B2), width: 2),
+                      ),
+                      child: GestureDetector(
+                        onPanUpdate: _onPanUpdate,
+                        onPanEnd: _onPanEnd,
+                        child: CustomPaint(
+                          size: Size.infinite,
+                          painter: _TracingPainter(
+                            text: item['word']!,
+                            userPoints: userPoints,
+                            isLetterMode: isLetterMode,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (checked) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      coverage >= 0.55
+                          ? 'Nice tracing! ${(coverage * 100).round()}% covered'
+                          : 'Try to follow the guide more closely (${(coverage * 100).round()}%)',
+                      style: TextStyle(
+                        color: coverage >= 0.55 ? const Color(0xFF4DD9C0) : Colors.redAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _clearDrawing,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            side: const BorderSide(color: Color(0xFFFFAB40)),
+                          ),
+                          child: const Text('Clear', style: TextStyle(color: Color(0xFFFFAB40), fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: checked ? _nextItem : _checkTracing,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFAB40),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: Text(checked ? 'Next' : 'Done', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -249,5 +334,97 @@ class _WritingGameScreenState extends State<WritingGameScreen> {
         ],
       ),
     );
+  }
+}
+
+/// Draws the hollow guide letter(s)/word with tracing dots, plus the kid's strokes on top.
+class _TracingPainter extends CustomPainter {
+  final String text;
+  final List<Offset?> userPoints;
+  final bool isLetterMode;
+
+  _TracingPainter({required this.text, required this.userPoints, required this.isLetterMode});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Bigger font for single letters (4-5), smaller for full words (5-7)
+    final fontSize = isLetterMode
+        ? (size.height * 0.6).clamp(80.0, 220.0)
+        : (size.width / (text.length + 1)).clamp(36.0, 90.0);
+
+    final textStyle = TextStyle(
+      fontSize: fontSize,
+      fontWeight: FontWeight.bold,
+      letterSpacing: isLetterMode ? 0 : 8,
+      foreground: Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isLetterMode ? 3 : 2
+        ..color = const Color(0xFFFFC987),
+    );
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: textStyle),
+      textDirection: TextDirection.ltr,
+    );
+    tp.layout(maxWidth: size.width - 20);
+    final offset = Offset(
+      (size.width - tp.width) / 2,
+      (size.height - tp.height) / 2,
+    );
+    tp.paint(canvas, offset);
+
+    // Dots along the baseline for a "tracing book" feel
+    final dotPaint = Paint()..color = const Color(0xFFFFD699);
+    for (double x = offset.dx; x < offset.dx + tp.width; x += 14) {
+      canvas.drawCircle(Offset(x, offset.dy + tp.height * 0.82), 1.8, dotPaint);
+    }
+
+    // Kid's drawn strokes
+    final strokePaint = Paint()
+      ..color = const Color(0xFF4DD9C0)
+      ..strokeWidth = isLetterMode ? 10 : 6
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    for (int i = 0; i < userPoints.length - 1; i++) {
+      final p1 = userPoints[i];
+      final p2 = userPoints[i + 1];
+      if (p1 != null && p2 != null) {
+        canvas.drawLine(p1, p2, strokePaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TracingPainter old) => true;
+}
+
+/// Samples approximate guide-text pixel positions for coverage scoring.
+class _GuideTextPainter {
+  final String text;
+  final bool isLetterMode;
+  _GuideTextPainter({required this.text, required this.isLetterMode});
+
+  List<Offset> samplePoints() {
+    final fontSize = isLetterMode ? 160.0 : 70.0;
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          letterSpacing: isLetterMode ? 0 : 8,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    tp.layout();
+    final points = <Offset>[];
+    for (double x = 0; x < tp.width; x += 6) {
+      // sample a vertical band through the middle of the text for rough coverage
+      for (double y = tp.height * 0.2; y < tp.height * 0.8; y += 10) {
+        points.add(Offset(x, y));
+      }
+    }
+    return points;
   }
 }
