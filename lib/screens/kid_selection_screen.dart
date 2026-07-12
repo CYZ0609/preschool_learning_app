@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'student/student_home.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 
 class KidSelectionScreen extends StatefulWidget {
   const KidSelectionScreen({super.key});
@@ -21,39 +22,60 @@ class _KidSelectionScreenState extends State<KidSelectionScreen> {
   }
 
   Future<void> _loadAllKids() async {
-  // Anonymous login for kids
-  if (FirebaseAuth.instance.currentUser == null) {
-    await FirebaseAuth.instance.signInAnonymously();
-  }
-  
-  final List<Map<String, dynamic>> kids = [];
+    try {
+      // Anonymous login for kids
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+      }
 
-final parents = await FirebaseFirestore.instance
-    .collection('users')
-    .where('role', isEqualTo: 'parent')
-    .get();
+      final List<Map<String, dynamic>> kids = [];
 
-    for (var parent in parents.docs) {
-      final children = await FirebaseFirestore.instance
+      final parents = await FirebaseFirestore.instance
           .collection('users')
-          .doc(parent.id)
-          .collection('children')
-          .get();
+          .where('role', isEqualTo: 'parent')
+          .get()
+          .timeout(const Duration(seconds: 20));
 
-      for (var child in children.docs) {
-        kids.add({
-          'id': child.id,
-          'parentId': parent.id,
-          'name': child.data()['name'] ?? 'Unknown',
-          'ageGroup': child.data()['ageGroup'] ?? '4-5',
+      for (var parent in parents.docs) {
+        final children = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(parent.id)
+            .collection('children')
+            .get()
+            .timeout(const Duration(seconds: 10));
+
+        for (var child in children.docs) {
+          kids.add({
+            'id': child.id,
+            'parentId': parent.id,
+            'name': child.data()['name'] ?? 'Unknown',
+            'ageGroup': child.data()['ageGroup'] ?? '4-5',
+          });
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          allKids = kids;
+          isLoading = false;
         });
       }
-    }
+    } catch (e) {
+      debugPrint("Error loading kids: $e");
 
-    setState(() {
-      allKids = kids;
-      isLoading = false;
-    });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading kids: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -118,8 +140,10 @@ final parents = await FirebaseFirestore.instance
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.arrow_back_ios_rounded,
-                        color: Color(0xFF333333)),
+                    child: const Icon(
+                      Icons.arrow_back_ios_rounded,
+                      color: Color(0xFF333333),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   const Text(
@@ -142,28 +166,34 @@ final parents = await FirebaseFirestore.instance
                   isLoading
                       ? const Center(
                           child: CircularProgressIndicator(
-                              color: Color(0xFFFFAB40)),
+                            color: Color(0xFFFFAB40),
+                          ),
                         )
                       : allKids.isEmpty
                           ? Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.face_rounded,
-                                      size: 80, color: Color(0xFFEEEEEE)),
+                                  const Icon(
+                                    Icons.face_rounded,
+                                    size: 80,
+                                    color: Color(0xFFEEEEEE),
+                                  ),
                                   const SizedBox(height: 16),
                                   const Text(
                                     'No kids found',
                                     style: TextStyle(
-                                        fontSize: 18,
-                                        color: Color(0xFF888888)),
+                                      fontSize: 18,
+                                      color: Color(0xFF888888),
+                                    ),
                                   ),
                                   const SizedBox(height: 8),
                                   const Text(
                                     'Ask your parent to register first',
                                     style: TextStyle(
-                                        fontSize: 14,
-                                        color: Color(0xFF888888)),
+                                      fontSize: 14,
+                                      color: Color(0xFF888888),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -180,8 +210,10 @@ final parents = await FirebaseFirestore.instance
                                     const Color(0xFF4DD9C0),
                                     const Color(0xFF64B5F6),
                                   ];
+
                                   final color = colors[
                                       allKids.indexOf(kid) % colors.length];
+
                                   return GestureDetector(
                                     onTap: () {
                                       Navigator.push(
@@ -214,9 +246,10 @@ final parents = await FirebaseFirestore.instance
                                               shape: BoxShape.circle,
                                             ),
                                             child: const Icon(
-                                                Icons.face_rounded,
-                                                color: Colors.white,
-                                                size: 36),
+                                              Icons.face_rounded,
+                                              color: Colors.white,
+                                              size: 36,
+                                            ),
                                           ),
                                           const SizedBox(height: 12),
                                           Text(

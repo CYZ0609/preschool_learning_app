@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../home_screen.dart';
+import 'assign_homework_screen.dart';
 
 class TeacherHome extends StatelessWidget {
   const TeacherHome({super.key});
@@ -51,6 +52,17 @@ class TeacherHome extends StatelessWidget {
                   ),
                   
                   const SizedBox(height: 24),
+                  // 功能卡片 3
+                  _menuCard(
+  icon: Icons.assignment_rounded,
+  label: 'Assign Homework',
+  subtitle: 'Set tasks for students',
+  color: const Color(0xFFFF8FAB),
+  onTap: () => Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const AssignHomeworkScreen()),
+  ),
+),
                   
                   // 登出按钮
                   SizedBox(
