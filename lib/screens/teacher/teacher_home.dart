@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../home_screen.dart';
 import 'assign_homework_screen.dart';
+import 'my_lessons_screen.dart';
 
 class TeacherHome extends StatelessWidget {
   const TeacherHome({super.key});
@@ -34,6 +35,19 @@ class TeacherHome extends StatelessWidget {
                   const Text('Manage your class', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
                   const SizedBox(height: 28),
                   
+                  // 功能卡片 0 - My Lessons (new: teach words before quiz)
+                  _menuCard(
+                    icon: Icons.school_rounded,
+                    label: 'My Lessons',
+                    subtitle: 'Create & manage lessons to teach words',
+                    color: const Color(0xFF80DEEA),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyLessonsScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
                   // 功能卡片 1
                   _menuCard(
                     icon: Icons.bar_chart_rounded, 

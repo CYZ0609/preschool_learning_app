@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'dart:ui' as ui;
 
 class WritingTracingScreen extends StatefulWidget {
   final String word;
   final String ageGroup;
-  const WritingTracingScreen({super.key, required this.word, required this.ageGroup});
+  // When part of a multi-word practice run, the caller supplies these so
+  // the completion dialog says "Next Word" instead of "Done" and hands
+  // control back to the caller instead of popping twice on its own.
+  final bool isLastWord;
+  final VoidCallback? onNext;
+
+  const WritingTracingScreen({
+    super.key,
+    required this.word,
+    required this.ageGroup,
+    this.isLastWord = true,
+    this.onNext,
+  });
 
   @override
   State<WritingTracingScreen> createState() => _WritingTracingScreenState();
@@ -12,10 +25,12 @@ class WritingTracingScreen extends StatefulWidget {
 
 class _WritingTracingScreenState extends State<WritingTracingScreen> {
   final FlutterTts tts = FlutterTts();
+  final GlobalKey _traceAreaKey = GlobalKey();
   int currentLetterIndex = 0;
   List<List<Offset>> strokes = [];
   List<Offset> currentStroke = [];
-  bool letterCompleted = false;
+  bool letterCompleted = false; // true once the child has drawn *something*
+  bool isChecking = false;      // true while validating the trace shape
 
   @override
   void initState() {
@@ -31,6 +46,105 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
 
   Future<void> _speakLetter(String letter) async {
     await tts.speak(letter);
+  }
+
+  // Compares what the child drew against the actual shape of the letter.
+  // Rasterizes the ghost letter into a low-res grid, marks which cells the
+  // child's strokes touched, and requires both:
+  //  - coverage: enough of the letter's shape was actually traced
+  //  - precision: the drawing mostly stayed on the letter, not scribbled elsewhere
+  Future<bool> _isTraceAccurate(String letter) async {
+    final box = _traceAreaKey.currentContext?.findRenderObject() as RenderBox?;
+    final size = box?.size ?? const Size(300, 300);
+    if (size.width < 10 || size.height < 10) return true; // fail-open, avoid blocking on layout glitches
+
+    const gridSize = 40;
+    final cellW = size.width / gridSize;
+    final cellH = size.height / gridSize;
+
+    // 1. Rasterize the target letter (must match the ghost Text widget: fontSize 200, centered).
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, size.width, size.height));
+    final tp = TextPainter(
+      text: TextSpan(
+        text: letter,
+        style: const TextStyle(fontSize: 200, fontWeight: FontWeight.bold, color: Colors.black),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset((size.width - tp.width) / 2, (size.height - tp.height) / 2));
+    final image = await recorder.endRecording().toImage(size.width.ceil(), size.height.ceil());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (byteData == null) return true;
+    final pixels = byteData.buffer.asUint8List();
+    final imgW = image.width;
+
+    bool isLetterPixel(int px, int py) {
+      if (px < 0 || py < 0 || px >= image.width || py >= image.height) return false;
+      final idx = (py * imgW + px) * 4;
+      return pixels[idx + 3] > 100; // alpha channel
+    }
+
+    final targetGrid = List.generate(gridSize, (_) => List.filled(gridSize, false));
+    for (int gy = 0; gy < gridSize; gy++) {
+      for (int gx = 0; gx < gridSize; gx++) {
+        final px = ((gx + 0.5) * cellW).round();
+        final py = ((gy + 0.5) * cellH).round();
+        targetGrid[gy][gx] = isLetterPixel(px, py);
+      }
+    }
+
+    // 2. Mark grid cells the child's strokes touched (plus a small neighborhood,
+    // since the stroke itself is drawn ~18px wide).
+    final drawnGrid = List.generate(gridSize, (_) => List.filled(gridSize, false));
+    final allPoints = [...strokes.expand((s) => s), ...currentStroke];
+    for (final p in allPoints) {
+      final gx = (p.dx / cellW).floor().clamp(0, gridSize - 1);
+      final gy = (p.dy / cellH).floor().clamp(0, gridSize - 1);
+      for (final dx in [-1, 0, 1]) {
+        for (final dy in [-1, 0, 1]) {
+          final nx = gx + dx, ny = gy + dy;
+          if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+            drawnGrid[ny][nx] = true;
+          }
+        }
+      }
+    }
+
+    int targetCount = 0, drawnCount = 0, overlapCount = 0;
+    for (int gy = 0; gy < gridSize; gy++) {
+      for (int gx = 0; gx < gridSize; gx++) {
+        final isTarget = targetGrid[gy][gx];
+        final isDrawn = drawnGrid[gy][gx];
+        if (isTarget) targetCount++;
+        if (isDrawn) drawnCount++;
+        if (isTarget && isDrawn) overlapCount++;
+      }
+    }
+
+    if (targetCount == 0) return true;
+    final coverage = overlapCount / targetCount;
+    final precision = drawnCount == 0 ? 0.0 : overlapCount / drawnCount;
+
+    return coverage >= 0.35 && precision >= 0.25;
+  }
+
+  Future<void> _attemptNext() async {
+    if (!letterCompleted || isChecking) return;
+    setState(() => isChecking = true);
+    final ok = await _isTraceAccurate(widget.word[currentLetterIndex]);
+    if (!mounted) return;
+    setState(() => isChecking = false);
+    if (ok) {
+      _nextLetter();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Try to trace over the letter shape ✏️'),
+          backgroundColor: Colors.orangeAccent,
+        ),
+      );
+    }
   }
 
   void _nextLetter() {
@@ -66,16 +180,24 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
+                Navigator.pop(context); // close dialog
+                if (widget.onNext != null) {
+                  widget.onNext!();
+                } else {
+                  Navigator.pop(context); // close screen (standalone mode)
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFAB40),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Done!',
-                  style: TextStyle(color: Colors.white)),
+              child: Text(
+                widget.onNext == null
+                    ? 'Done!'
+                    : (widget.isLastWord ? 'Finish! 🎉' : 'Next Word →'),
+                style: const TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -176,6 +298,7 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                   // Tracing area
                   Expanded(
                     child: Container(
+                      key: _traceAreaKey,
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF9F0),
                         borderRadius: BorderRadius.circular(24),
@@ -265,7 +388,7 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                       Expanded(
                         flex: 2,
                         child: ElevatedButton(
-                          onPressed: letterCompleted ? _nextLetter : null,
+                          onPressed: (letterCompleted && !isChecking) ? _attemptNext : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFFAB40),
                             disabledBackgroundColor: const Color(0xFFEEEEEE),
@@ -273,17 +396,22 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                                 borderRadius: BorderRadius.circular(14)),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: Text(
-                            currentLetterIndex < widget.word.length - 1
-                                ? 'Next Letter →'
-                                : 'Done! ✅',
-                            style: TextStyle(
-                              color: letterCompleted
-                                  ? Colors.white
-                                  : const Color(0xFF888888),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: isChecking
+                              ? const SizedBox(
+                                  width: 22, height: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                                )
+                              : Text(
+                                  currentLetterIndex < widget.word.length - 1
+                                      ? 'Next Letter →'
+                                      : 'Done! ✅',
+                                  style: TextStyle(
+                                    color: letterCompleted
+                                        ? Colors.white
+                                        : const Color(0xFF888888),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
                     ],

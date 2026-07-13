@@ -5,10 +5,12 @@ import '../home_screen.dart';
 import 'listening_game_screen.dart';
 import 'speaking_game_screen.dart';
 import 'reading_game_screen.dart';
-import 'writing_game_screen.dart';
 import 'arithmetic_game_screen.dart';
 import 'writing_tracing_screen.dart';
+import 'teach_screen.dart';
 import '../../services/screen_time_service.dart';
+import '../../services/lesson_service.dart';
+import '../../services/progress_service.dart';
 
 class StudentHome extends StatefulWidget {
   final String kidName;
@@ -33,6 +35,7 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
   Timer? _checkTimer;
   List<Map<String, dynamic>> allKids = [];
   bool isLoading = true;
+  List<Map<String, dynamic>> pendingAssignments = [];
 
   @override
   void initState() {
@@ -42,6 +45,27 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
     _checkTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       _checkScreenTimeLimit();
     });
+    _loadAssignments();
+  }
+
+  Future<void> _loadAssignments() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('assignments')
+          .where('kidId', isEqualTo: widget.kidId)
+          .where('status', isEqualTo: 'pending')
+          .get();
+      if (!mounted) return;
+      setState(() {
+        pendingAssignments = snap.docs
+            .map((d) => {'id': d.id, ...d.data()})
+            .toList();
+      });
+    } catch (e) {
+      // Surfaced (not silent) so a missing-index error is visible and
+      // actionable — same pattern as _checkScreenTimeLimit elsewhere.
+      debugPrint('Failed to load assignments: $e');
+    }
   }
 
   @override
@@ -122,7 +146,59 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _markAssignmentDone(String assignmentId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('assignments')
+          .doc(assignmentId)
+          .update({'status': 'completed'});
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        pendingAssignments.removeWhere((a) => a['id'] == assignmentId);
+      });
+    }
+  }
+
+  Future<void> _startAssignment(Map<String, dynamic> assignment) async {
+    final subject = assignment['subject'] as String? ?? 'reading';
+    final lessonId = assignment['lessonId'] as String?;
+
+    if (lessonId == null) {
+      await _markAssignmentDone(assignment['id']);
+      if (mounted) _navigateToGame(context, subject);
+      return;
+    }
+
+    final lesson = await LessonService.getLesson(lessonId);
+    if (!mounted) return;
+    if (lesson == null || lesson.words.isEmpty) {
+      // Lesson was deleted or is empty — just fall back to the quiz.
+      await _markAssignmentDone(assignment['id']);
+      if (mounted) _navigateToGame(context, subject);
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TeachScreen(
+          lesson: lesson,
+          onFinished: () {
+            Navigator.pop(context); // close TeachScreen
+            _markAssignmentDone(assignment['id']);
+            _navigateToGame(context, subject);
+          },
+        ),
+      ),
+    );
+  }
+
   void _navigateToGame(BuildContext context, String subject) {
+    if (subject == 'writing') {
+      _startWritingPractice(widget.ageGroup, widget.kidId);
+      return;
+    }
     Widget screen;
     switch (subject) {
       case 'listening':
@@ -134,9 +210,6 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
       case 'reading':
         screen = ReadingGameScreen(ageGroup: widget.ageGroup, kidId: widget.kidId);
         break;
-      case 'writing':
-        screen = WritingGameScreen(ageGroup: widget.ageGroup, kidId: widget.kidId);
-        break;
       case 'arithmetic':
         screen = ArithmeticGameScreen(ageGroup: widget.ageGroup, kidId: widget.kidId);
         break;
@@ -144,6 +217,73 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
         screen = ListeningGameScreen(ageGroup: widget.ageGroup, kidId: widget.kidId);
     }
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  // Word bank for writing practice, reusing the same age-appropriate
+  // vocabulary as the reading quiz so tracing feels consistent app-wide.
+  List<String> _writingWordsFor(String age) {
+    switch (age) {
+      case '4-5':
+        return ['CAT', 'DOG', 'SUN', 'HAT', 'FISH', 'PIG', 'COW', 'BIRD'];
+      case '5-6':
+        return ['APPLE', 'RABBIT', 'YELLOW', 'TABLE', 'WATER', 'BANANA'];
+      case '6-7':
+      default:
+        return ['TIGER', 'GIRAFFE', 'ZEBRA', 'TEACHER', 'PILOT', 'WINDOW'];
+    }
+  }
+
+  // Runs the child through the Test-Tracing screen for each word in turn,
+  // then saves progress and returns to this screen. Replaces the old
+  // (buggy) coverage-detection Writing Game.
+  void _startWritingPractice(String ageGroup, String kidId) {
+    final words = _writingWordsFor(ageGroup);
+    int index = 0;
+
+    void goNext() {
+      index++;
+      if (index >= words.length) {
+        Navigator.pop(context); // back to Student Home
+        ProgressService.saveProgress(
+          subject: 'writing',
+          module: 'writing',
+          ageGroup: ageGroup,
+          score: words.length,
+          totalQuestions: words.length,
+          kidId: kidId,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Writing practice complete! 🎉'),
+            backgroundColor: Color(0xFF4DD9C0),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WritingTracingScreen(
+              word: words[index],
+              ageGroup: ageGroup,
+              isLastWord: index == words.length - 1,
+              onNext: goNext,
+            ),
+          ),
+        );
+      }
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WritingTracingScreen(
+          word: words[0],
+          ageGroup: ageGroup,
+          isLastWord: words.length == 1,
+          onNext: goNext,
+        ),
+      ),
+    );
   }
 
   @override
@@ -170,6 +310,54 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                     const SizedBox(height: 24),
                     Text('Hello, ${widget.kidName}!', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
                     const SizedBox(height: 8),
+                    if (pendingAssignments.isNotEmpty) ...[
+                      const Text('From Your Teacher', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
+                      const SizedBox(height: 12),
+                      ...pendingAssignments.map((a) {
+                        final subject = (a['subject'] as String? ?? 'reading');
+                        final hasLesson = a['lessonId'] != null;
+                        return GestureDetector(
+                          onTap: () => _startAssignment(a),
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF80DEEA).withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFF80DEEA), width: 2),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44, height: 44,
+                                  decoration: BoxDecoration(color: const Color(0xFF80DEEA), borderRadius: BorderRadius.circular(12)),
+                                  child: Icon(hasLesson ? Icons.school_rounded : Icons.assignment_rounded, color: Colors.white, size: 24),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${subject[0].toUpperCase()}${subject.substring(1)} Assignment',
+                                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
+                                      ),
+                                      Text(
+                                        hasLesson ? 'Learn new words, then quiz!' : 'Quiz time!',
+                                        style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF80DEEA), size: 16),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 12),
+                    ],
                     const Text('Topics', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
                     const SizedBox(height: 20),
                     _subjectCard(context, icon: Icons.hearing_rounded, label: 'Listening Game', color: const Color(0xFFFFAB40), subject: 'listening'),
@@ -181,35 +369,6 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                     _subjectCard(context, icon: Icons.edit_rounded, label: 'Writing Game', color: const Color(0xFFFFAB40), subject: 'writing'),
                     const SizedBox(height: 12),
                     _subjectCard(context, icon: Icons.calculate_rounded, label: 'Arithmetic Game', color: const Color(0xFFFF8FAB), subject: 'arithmetic'),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => WritingTracingScreen(
-                            word: 'CAT',
-                            ageGroup: widget.ageGroup,
-                          ),
-                        ),
-                      ),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4DD9C0).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFF4DD9C0), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.draw_rounded, color: Colors.white, size: 24)),
-                            const SizedBox(width: 16),
-                            const Text('Test Tracing', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF4DD9C0))),
-                            const Spacer(),
-                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF4DD9C0), size: 16),
-                          ],
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,

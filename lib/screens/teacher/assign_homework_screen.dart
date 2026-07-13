@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/lesson_service.dart';
 
 class AssignHomeworkScreen extends StatefulWidget {
   const AssignHomeworkScreen({super.key});
@@ -17,6 +18,9 @@ class _AssignHomeworkScreenState extends State<AssignHomeworkScreen> {
   DateTime? selectedDueDate;
   bool isLoading = true;
   bool isSubmitting = false;
+
+  List<Lesson> matchingLessons = [];
+  String? selectedLessonId; // null = no lesson attached, just a plain quiz
 
   final subjects = [
     {'value': 'listening', 'label': 'Listening Game', 'icon': Icons.hearing_rounded},
@@ -65,9 +69,34 @@ class _AssignHomeworkScreenState extends State<AssignHomeworkScreen> {
         }
         isLoading = false;
       });
+      _refreshLessons();
     } catch (e) {
       setState(() => isLoading = false);
     }
+  }
+
+  String get _selectedKidAgeGroup {
+    final kid = allKids.firstWhere(
+      (k) => k['id'] == selectedKidId,
+      orElse: () => {'ageGroup': '4-5'},
+    );
+    return kid['ageGroup'] as String;
+  }
+
+  Future<void> _refreshLessons() async {
+    if (selectedKidId == null) return;
+    final lessons = await LessonService.lessonsFor(
+      subject: selectedSubject,
+      ageGroup: _selectedKidAgeGroup,
+    );
+    setState(() {
+      matchingLessons = lessons;
+      // Keep the previous selection only if it's still a valid match
+      if (selectedLessonId != null &&
+          !lessons.any((l) => l.id == selectedLessonId)) {
+        selectedLessonId = null;
+      }
+    });
   }
 
   Future<void> _pickDate() async {
@@ -107,6 +136,7 @@ class _AssignHomeworkScreenState extends State<AssignHomeworkScreen> {
         'kidId': selectedKidId,
         'kidName': selectedKidName,
         'subject': selectedSubject,
+        'lessonId': selectedLessonId, // null = no teaching step, quiz only
         'dueDate': selectedDueDate!.toIso8601String().split('T')[0],
         'status': 'pending',
         'createdAt': DateTime.now(),
@@ -175,6 +205,7 @@ class _AssignHomeworkScreenState extends State<AssignHomeworkScreen> {
                                   selectedKidName = allKids
                                       .firstWhere((k) => k['id'] == val)['name'];
                                 });
+                                _refreshLessons();
                               },
                             ),
                           ),
@@ -188,7 +219,10 @@ class _AssignHomeworkScreenState extends State<AssignHomeworkScreen> {
                   ...subjects.map((subject) {
                     final isSelected = selectedSubject == subject['value'];
                     return GestureDetector(
-                      onTap: () => setState(() => selectedSubject = subject['value'] as String),
+                      onTap: () {
+                        setState(() => selectedSubject = subject['value'] as String);
+                        _refreshLessons();
+                      },
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -227,6 +261,102 @@ class _AssignHomeworkScreenState extends State<AssignHomeworkScreen> {
                       ),
                     );
                   }),
+                  const SizedBox(height: 24),
+
+                  // Attach a Lesson (optional) — kid learns these words before the quiz
+                  const Text('Teach First? (optional)',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333333))),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Attach one of your lessons so the student learns the words before the quiz.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                  ),
+                  const SizedBox(height: 12),
+                  if (matchingLessons.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Text(
+                        'No lessons yet for this subject & age group. You can still assign a plain quiz below, or create a lesson first from "My Lessons".',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                      ),
+                    )
+                  else
+                    Column(
+                      children: [
+                        GestureDetector(
+                          onTap: () => setState(() => selectedLessonId = null),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            decoration: BoxDecoration(
+                              color: selectedLessonId == null
+                                  ? const Color(0xFF888888).withOpacity(0.12)
+                                  : const Color(0xFFF5F5F5),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: selectedLessonId == null ? const Color(0xFF888888) : Colors.transparent,
+                                width: 2,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.quiz_rounded, color: Color(0xFF888888)),
+                                const SizedBox(width: 12),
+                                const Text('No lesson — quiz only',
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333333))),
+                                const Spacer(),
+                                if (selectedLessonId == null)
+                                  const Icon(Icons.check_circle_rounded, color: Color(0xFF888888)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        ...matchingLessons.map((lesson) {
+                          final isSelected = selectedLessonId == lesson.id;
+                          return GestureDetector(
+                            onTap: () => setState(() => selectedLessonId = lesson.id),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFF80DEEA).withOpacity(0.15)
+                                    : const Color(0xFFF5F5F5),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isSelected ? const Color(0xFF80DEEA) : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.school_rounded, color: Color(0xFF4DD9C0)),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(lesson.title,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF333333))),
+                                        Text('${lesson.words.length} words',
+                                            style: const TextStyle(fontSize: 11, color: Color(0xFF888888))),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Icon(Icons.check_circle_rounded, color: Color(0xFF4DD9C0)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
                   const SizedBox(height: 24),
 
                   // Select Due Date
