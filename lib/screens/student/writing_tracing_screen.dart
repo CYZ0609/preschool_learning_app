@@ -31,6 +31,7 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
   List<Offset> currentStroke = [];
   bool letterCompleted = false; // true once the child has drawn *something*
   bool isChecking = false;      // true while validating the trace shape
+  String? traceError;           // inline message shown in-layout, never overlays UI
 
   @override
   void initState() {
@@ -44,6 +45,12 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
     await tts.speak(widget.word);
   }
 
+  @override
+  void dispose() {
+    tts.stop();
+    super.dispose();
+  }
+
   Future<void> _speakLetter(String letter) async {
     await tts.speak(letter);
   }
@@ -53,10 +60,12 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
   // child's strokes touched, and requires both:
   //  - coverage: enough of the letter's shape was actually traced
   //  - precision: the drawing mostly stayed on the letter, not scribbled elsewhere
-  Future<bool> _isTraceAccurate(String letter) async {
+  Future<Map<String, dynamic>> _isTraceAccurate(String letter) async {
     final box = _traceAreaKey.currentContext?.findRenderObject() as RenderBox?;
     final size = box?.size ?? const Size(300, 300);
-    if (size.width < 10 || size.height < 10) return true; // fail-open, avoid blocking on layout glitches
+    if (size.width < 10 || size.height < 10) {
+      return {'pass': true, 'reason': 'layout not ready'};
+    }
 
     const gridSize = 40;
     final cellW = size.width / gridSize;
@@ -75,9 +84,13 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
     tp.paint(canvas, Offset((size.width - tp.width) / 2, (size.height - tp.height) / 2));
     final image = await recorder.endRecording().toImage(size.width.ceil(), size.height.ceil());
     final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-    if (byteData == null) return true;
+    if (byteData == null) return {'pass': true, 'reason': 'no image data'};
     final pixels = byteData.buffer.asUint8List();
     final imgW = image.width;
+
+    // Snapshot the points now, before any further awaits — if the child
+    // taps "Clear" mid-check, we still judge what they actually drew.
+    final allPoints = [...strokes.expand((s) => s), ...currentStroke];
 
     bool isLetterPixel(int px, int py) {
       if (px < 0 || py < 0 || px >= image.width || py >= image.height) return false;
@@ -86,64 +99,154 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
     }
 
     final targetGrid = List.generate(gridSize, (_) => List.filled(gridSize, false));
+    int inkMinGX = gridSize, inkMaxGX = -1, inkMinGY = gridSize, inkMaxGY = -1;
     for (int gy = 0; gy < gridSize; gy++) {
       for (int gx = 0; gx < gridSize; gx++) {
         final px = ((gx + 0.5) * cellW).round();
         final py = ((gy + 0.5) * cellH).round();
-        targetGrid[gy][gx] = isLetterPixel(px, py);
+        final isInk = isLetterPixel(px, py);
+        targetGrid[gy][gx] = isInk;
+        if (isInk) {
+          if (gx < inkMinGX) inkMinGX = gx;
+          if (gx > inkMaxGX) inkMaxGX = gx;
+          if (gy < inkMinGY) inkMinGY = gy;
+          if (gy > inkMaxGY) inkMaxGY = gy;
+        }
       }
     }
+    // Real visible ink size in pixels — NOT tp.width/tp.height, which
+    // include font ascent/descent padding well beyond the actual glyph
+    // strokes and would make this check fail for reasons unrelated to
+    // tracing accuracy.
+    final inkWidth = inkMaxGX >= inkMinGX ? (inkMaxGX - inkMinGX + 1) * cellW : size.width;
+    final inkHeight = inkMaxGY >= inkMinGY ? (inkMaxGY - inkMinGY + 1) * cellH : size.height;
 
-    // 2. Mark grid cells the child's strokes touched (plus a small neighborhood,
-    // since the stroke itself is drawn ~18px wide).
-    final drawnGrid = List.generate(gridSize, (_) => List.filled(gridSize, false));
-    final allPoints = [...strokes.expand((s) => s), ...currentStroke];
-    for (final p in allPoints) {
-      final gx = (p.dx / cellW).floor().clamp(0, gridSize - 1);
-      final gy = (p.dy / cellH).floor().clamp(0, gridSize - 1);
-      for (final dx in [-1, 0, 1]) {
-        for (final dy in [-1, 0, 1]) {
-          final nx = gx + dx, ny = gy + dy;
-          if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
-            drawnGrid[ny][nx] = true;
+    // Dilate the TARGET by 2 cells — used only for precision (did the
+    // stroke stay reasonably close to the letter, allowing overshoot).
+    final dilatedTarget = List.generate(gridSize, (_) => List.filled(gridSize, false));
+    for (int gy = 0; gy < gridSize; gy++) {
+      for (int gx = 0; gx < gridSize; gx++) {
+        if (!targetGrid[gy][gx]) continue;
+        for (int dx = -2; dx <= 2; dx++) {
+          for (int dy = -2; dy <= 2; dy++) {
+            final nx = gx + dx, ny = gy + dy;
+            if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+              dilatedTarget[ny][nx] = true;
+            }
           }
         }
       }
     }
 
-    int targetCount = 0, drawnCount = 0, overlapCount = 0;
+    final drawnGrid = List.generate(gridSize, (_) => List.filled(gridSize, false));
+
+    // Reject near-nothing input outright (a single tap or tiny flick).
+    if (allPoints.length < 25) {
+      return {'pass': false, 'reason': 'too few points', 'points': allPoints.length};
+    }
+
+    double minX = size.width, maxX = 0, minY = size.height, maxY = 0;
+    for (final p in allPoints) {
+      final gx = (p.dx / cellW).floor().clamp(0, gridSize - 1);
+      final gy = (p.dy / cellH).floor().clamp(0, gridSize - 1);
+      drawnGrid[gy][gx] = true;
+      if (p.dx < minX) minX = p.dx;
+      if (p.dx > maxX) maxX = p.dx;
+      if (p.dy < minY) minY = p.dy;
+      if (p.dy > maxY) maxY = p.dy;
+    }
+
+    // Dilate the DRAWN points by 3 cells — used only for coverage (does the
+    // stroke's path pass close enough to every part of the letter). This is
+    // the key fix: a thin (~18px) stroke traced perfectly through the
+    // middle of a letter can never fill the letter's own full width, so
+    // coverage must be measured as "target reached by drawing", not
+    // "drawing filled the target region".
+    final dilatedDrawn = List.generate(gridSize, (_) => List.filled(gridSize, false));
     for (int gy = 0; gy < gridSize; gy++) {
       for (int gx = 0; gx < gridSize; gx++) {
-        final isTarget = targetGrid[gy][gx];
-        final isDrawn = drawnGrid[gy][gx];
-        if (isTarget) targetCount++;
-        if (isDrawn) drawnCount++;
-        if (isTarget && isDrawn) overlapCount++;
+        if (!drawnGrid[gy][gx]) continue;
+        for (int dx = -3; dx <= 3; dx++) {
+          for (int dy = -3; dy <= 3; dy++) {
+            final nx = gx + dx, ny = gy + dy;
+            if (nx >= 0 && nx < gridSize && ny >= 0 && ny < gridSize) {
+              dilatedDrawn[ny][nx] = true;
+            }
+          }
+        }
       }
     }
 
-    if (targetCount == 0) return true;
-    final coverage = overlapCount / targetCount;
-    final precision = drawnCount == 0 ? 0.0 : overlapCount / drawnCount;
+    // Reject drawings that are too small/cramped to plausibly be a full
+    // trace — measured against THIS letter's own visible ink size, not
+    // font metrics (which include invisible ascent/descent padding).
+    final drawnW = maxX - minX;
+    final drawnH = maxY - minY;
+    final wRatio = inkWidth > 0 ? (drawnW / inkWidth).clamp(0.0, 3.0) : 1.0;
+    final hRatio = inkHeight > 0 ? (drawnH / inkHeight).clamp(0.0, 3.0) : 1.0;
+    if (wRatio < 0.35 || hRatio < 0.35) {
+      return {
+        'pass': false,
+        'reason': 'too small/cramped',
+        'wRatio': wRatio.toStringAsFixed(2),
+        'hRatio': hRatio.toStringAsFixed(2),
+      };
+    }
 
-    return coverage >= 0.35 && precision >= 0.25;
+    int targetCount = 0, drawnCount = 0;
+    int coverageHits = 0;  // raw target cells reached by (dilated) drawing
+    int precisionHits = 0; // raw drawn cells that landed on/near (dilated) target
+    for (int gy = 0; gy < gridSize; gy++) {
+      for (int gx = 0; gx < gridSize; gx++) {
+        if (targetGrid[gy][gx]) {
+          targetCount++;
+          if (dilatedDrawn[gy][gx]) coverageHits++;
+        }
+        if (drawnGrid[gy][gx]) {
+          drawnCount++;
+          if (dilatedTarget[gy][gx]) precisionHits++;
+        }
+      }
+    }
+
+    if (targetCount == 0) return {'pass': true, 'reason': 'empty target'};
+    final coverage = coverageHits / targetCount;
+    final precision = drawnCount == 0 ? 0.0 : precisionHits / drawnCount;
+
+    final pass = coverage >= 0.5 && precision >= 0.4;
+    return {
+      'pass': pass,
+      'reason': pass ? 'ok' : 'low coverage/precision',
+      'coverage': (coverage * 100).toStringAsFixed(0),
+      'precision': (precision * 100).toStringAsFixed(0),
+      'points': allPoints.length,
+    };
   }
 
   Future<void> _attemptNext() async {
     if (!letterCompleted || isChecking) return;
-    setState(() => isChecking = true);
-    final ok = await _isTraceAccurate(widget.word[currentLetterIndex]);
+    setState(() {
+      isChecking = true;
+      traceError = null;
+    });
+    final result = await _isTraceAccurate(widget.word[currentLetterIndex]);
     if (!mounted) return;
-    setState(() => isChecking = false);
-    if (ok) {
+    final pass = result['pass'] == true;
+    if (pass) {
+      setState(() => isChecking = false);
       _nextLetter();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Try to trace over the letter shape ✏️'),
-          backgroundColor: Colors.orangeAccent,
-        ),
-      );
+      // TEMPORARY: showing the raw numbers so we can see exactly why a
+      // trace fails instead of guessing at thresholds blind. Remove the
+      // details once tuning is confirmed correct.
+      final details = result.entries
+          .where((e) => e.key != 'pass')
+          .map((e) => '${e.key}=${e.value}')
+          .join(', ');
+      setState(() {
+        isChecking = false;
+        traceError = 'Try again ✏️  ($details)';
+      });
     }
   }
 
@@ -154,6 +257,7 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
         strokes = [];
         currentStroke = [];
         letterCompleted = false;
+        traceError = null;
       });
       _speakLetter(widget.word[currentLetterIndex]);
     } else {
@@ -327,6 +431,7 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                               onPanStart: (details) {
                                 setState(() {
                                   currentStroke = [details.localPosition];
+                                  traceError = null;
                                 });
                               },
                               onPanUpdate: (details) {
@@ -359,18 +464,41 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  if (traceError != null)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.orangeAccent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.orangeAccent, width: 1.5),
+                      ),
+                      child: Text(
+                        traceError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFFE07800),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
                   Row(
                     children: [
                       // Clear button
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () {
-                            setState(() {
-                              strokes = [];
-                              currentStroke = [];
-                              letterCompleted = false;
-                            });
-                          },
+                          onPressed: isChecking
+                              ? null
+                              : () {
+                                  setState(() {
+                                    strokes = [];
+                                    currentStroke = [];
+                                    letterCompleted = false;
+                                    traceError = null;
+                                  });
+                                },
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0xFFFFAB40)),
                             shape: RoundedRectangleBorder(
