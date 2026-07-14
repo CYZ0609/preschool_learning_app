@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import '../../services/lesson_service.dart';
+import 'games/scratch_reveal_card.dart';
+import 'games/flashlight_hunt_card.dart';
+import 'games/sentence_builder_card.dart';
 
 /// Shown to a student before their quiz when a teacher has attached a
 /// Lesson to the assignment. Swipe/tap through the words one at a time;
@@ -17,48 +19,34 @@ class TeachScreen extends StatefulWidget {
 }
 
 class _TeachScreenState extends State<TeachScreen> {
-  final FlutterTts tts = FlutterTts();
   int currentIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    tts.setLanguage('en-US');
-    tts.setSpeechRate(0.4);
-    // Speak the first word automatically so the child hears it right away.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _speakCurrent());
-  }
-
-  @override
-  void dispose() {
-    tts.stop();
-    super.dispose();
-  }
-
-  Future<void> _speakCurrent() async {
-    await tts.speak(widget.lesson.words[currentIndex].word);
-  }
 
   void _next() {
     if (currentIndex < widget.lesson.words.length - 1) {
       setState(() => currentIndex++);
-      _speakCurrent();
     } else {
       widget.onFinished();
     }
   }
 
-  void _previous() {
-    if (currentIndex > 0) {
-      setState(() => currentIndex--);
-      _speakCurrent();
+  // Picks the right mini-game for the lesson's age group. Keyed by
+  // currentIndex so each word gets a fresh game instance (not reused state).
+  Widget _buildGameForWord(LessonWord word) {
+    switch (widget.lesson.ageGroup) {
+      case '4-5':
+        return ScratchRevealCard(key: ValueKey(currentIndex), word: word, onComplete: _next);
+      case '5-6':
+        return FlashlightHuntCard(key: ValueKey(currentIndex), word: word, onComplete: _next);
+      case '6-7':
+        return SentenceBuilderCard(key: ValueKey(currentIndex), word: word, onComplete: _next);
+      default:
+        return ScratchRevealCard(key: ValueKey(currentIndex), word: word, onComplete: _next);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final word = widget.lesson.words[currentIndex];
-    final isLast = currentIndex == widget.lesson.words.length - 1;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -103,101 +91,15 @@ class _TeachScreenState extends State<TeachScreen> {
                     widget.lesson.title,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF333333)),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: _speakCurrent,
-                            child: Container(
-                              width: 220,
-                              height: 220,
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE0FDF4),
-                                borderRadius: BorderRadius.circular(28),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF4DD9C0).withOpacity(0.15),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Image.asset(
-                                word.imageAsset,
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                  Icons.broken_image_rounded,
-                                  color: Colors.grey,
-                                  size: 60,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-                          GestureDetector(
-                            onTap: _speakCurrent,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  word.word,
-                                  style: const TextStyle(
-                                    fontSize: 40,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF1A8C7A),
-                                    letterSpacing: 3,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                const Icon(Icons.volume_up_rounded, color: Color(0xFF4DD9C0), size: 30),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Tap the word or picture to hear it',
-                            style: TextStyle(fontSize: 13, color: Color(0xFF888888)),
-                          ),
-                        ],
-                      ),
+                  const SizedBox(height: 16),
+                  Expanded(child: _buildGameForWord(word)),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: TextButton(
+                      onPressed: _next,
+                      child: const Text('Skip this word',
+                          style: TextStyle(color: Color(0xFF888888), fontSize: 12)),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      if (currentIndex > 0)
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _previous,
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFF4DD9C0)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: const Text('Back',
-                                style: TextStyle(color: Color(0xFF4DD9C0), fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      if (currentIndex > 0) const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: ElevatedButton(
-                          onPressed: _next,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4DD9C0),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: Text(
-                            isLast ? 'Start Quiz' : 'Next',
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),

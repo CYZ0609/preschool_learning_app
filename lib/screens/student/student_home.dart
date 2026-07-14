@@ -36,6 +36,7 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
   List<Map<String, dynamic>> allKids = [];
   bool isLoading = true;
   List<Map<String, dynamic>> pendingAssignments = [];
+  String? assignmentDebugInfo; // TEMPORARY: shown on-screen to debug why assignments aren't appearing
 
   @override
   void initState() {
@@ -60,11 +61,14 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
         pendingAssignments = snap.docs
             .map((d) => {'id': d.id, ...d.data()})
             .toList();
+        assignmentDebugInfo =
+            'Query OK. kidId="${widget.kidId}" → found ${snap.docs.length} pending assignment(s).';
       });
     } catch (e) {
-      // Surfaced (not silent) so a missing-index error is visible and
-      // actionable — same pattern as _checkScreenTimeLimit elsewhere.
-      debugPrint('Failed to load assignments: $e');
+      if (!mounted) return;
+      setState(() {
+        assignmentDebugInfo = 'Query FAILED: $e';
+      });
     }
   }
 
@@ -309,6 +313,19 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 24),
                     Text('Hello, ${widget.kidName}!', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
+                    if (assignmentDebugInfo != null)
+                      Container(
+                        margin: const EdgeInsets.only(top: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '[DEBUG] $assignmentDebugInfo',
+                          style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 11),
+                        ),
+                      ),
                     const SizedBox(height: 8),
                     if (pendingAssignments.isNotEmpty) ...[
                       const Text('From Your Teacher', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
