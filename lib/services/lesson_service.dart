@@ -5,14 +5,28 @@ import 'package:firebase_auth/firebase_auth.dart';
 class LessonWord {
   final String word;
   final String imageAsset; // e.g. assets/images/cow.png
+  final double? positionX; // 0.0-1.0 fractional X on the map; null = auto-layout
+  final double? positionY; // 0.0-1.0 fractional Y on the map; null = auto-layout
 
-  LessonWord({required this.word, required this.imageAsset});
+  LessonWord({
+    required this.word,
+    required this.imageAsset,
+    this.positionX,
+    this.positionY,
+  });
 
-  Map<String, dynamic> toMap() => {'word': word, 'imageAsset': imageAsset};
+  Map<String, dynamic> toMap() => {
+        'word': word,
+        'imageAsset': imageAsset,
+        'positionX': positionX,
+        'positionY': positionY,
+      };
 
   factory LessonWord.fromMap(Map<String, dynamic> map) => LessonWord(
         word: map['word'] ?? '',
         imageAsset: map['imageAsset'] ?? '',
+        positionX: (map['positionX'] as num?)?.toDouble(),
+        positionY: (map['positionY'] as num?)?.toDouble(),
       );
 }
 

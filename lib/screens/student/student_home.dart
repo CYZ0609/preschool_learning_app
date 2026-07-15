@@ -8,9 +8,12 @@ import 'reading_game_screen.dart';
 import 'arithmetic_game_screen.dart';
 import 'writing_tracing_screen.dart';
 import 'teach_screen.dart';
+import 'farm_map_screen.dart';
+import 'savanna_map_screen.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/lesson_service.dart';
 import '../../services/progress_service.dart';
+import '../../data/default_map_words.dart';
 
 class StudentHome extends StatefulWidget {
   final String kidName;
@@ -183,6 +186,34 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
       return;
     }
 
+    if (lesson.subject == 'reading' || lesson.subject == 'listening') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => lesson.subject == 'reading'
+              ? FarmMapScreen(
+                  lesson: lesson,
+                  kidId: widget.kidId,
+                  onAllWordsExplored: () {
+                    Navigator.pop(context);
+                    _markAssignmentDone(assignment['id']);
+                    _navigateToGame(context, subject);
+                  },
+                )
+              : SavannaMapScreen(
+                  lesson: lesson,
+                  kidId: widget.kidId,
+                  onAllWordsExplored: () {
+                    Navigator.pop(context);
+                    _markAssignmentDone(assignment['id']);
+                    _navigateToGame(context, subject);
+                  },
+                ),
+        ),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -194,6 +225,37 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
             _navigateToGame(context, subject);
           },
         ),
+      ),
+    );
+  }
+
+  // Lets a student open Farm/Savanna maps on their own, using a default
+  // word bank, without needing a teacher-assigned lesson first.
+  void _openFreePlayMap(BuildContext context, String theme) {
+    final words = defaultMapWordsFor(widget.ageGroup);
+    if (words.isEmpty) return; // safety net, shouldn't happen with the built-in banks
+    final freePlayLesson = Lesson(
+      id: 'freeplay',
+      teacherUid: '',
+      title: theme == 'farm' ? 'Farm Explore' : 'Animal Hunt',
+      subject: theme == 'farm' ? 'reading' : 'listening',
+      ageGroup: widget.ageGroup,
+      words: words,
+    );
+
+    void onDone() {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Great exploring! 🎉'), backgroundColor: Color(0xFF4DD9C0)),
+      );
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => theme == 'farm'
+            ? FarmMapScreen(lesson: freePlayLesson, kidId: widget.kidId, onAllWordsExplored: onDone)
+            : SavannaMapScreen(lesson: freePlayLesson, kidId: widget.kidId, onAllWordsExplored: onDone),
       ),
     );
   }
@@ -386,6 +448,44 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                     _subjectCard(context, icon: Icons.edit_rounded, label: 'Writing Game', color: const Color(0xFFFFAB40), subject: 'writing'),
                     const SizedBox(height: 12),
                     _subjectCard(context, icon: Icons.calculate_rounded, label: 'Arithmetic Game', color: const Color(0xFFFF8FAB), subject: 'arithmetic'),
+                    const SizedBox(height: 20),
+                    const Text('Explore', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () => _openFreePlayMap(context, 'farm'),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(color: const Color(0xFF7CB86D).withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                        child: Row(
+                          children: [
+                            Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFF7CB86D), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.grass_rounded, color: Colors.white, size: 24)),
+                            const SizedBox(width: 16),
+                            const Text('Farm Explore 🚜', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF4A7A3D))),
+                            const Spacer(),
+                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF7CB86D), size: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: () => _openFreePlayMap(context, 'savanna'),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(color: const Color(0xFFE8B95E).withOpacity(0.20), borderRadius: BorderRadius.circular(20)),
+                        child: Row(
+                          children: [
+                            Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFE8B95E), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.travel_explore_rounded, color: Colors.white, size: 24)),
+                            const SizedBox(width: 16),
+                            const Text('Animal Hunt 🦁', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF8A6A2A))),
+                            const Spacer(),
+                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFE8B95E), size: 16),
+                          ],
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
