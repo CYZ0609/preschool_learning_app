@@ -10,6 +10,8 @@ import 'writing_tracing_screen.dart';
 import 'teach_screen.dart';
 import 'farm_map_screen.dart';
 import 'savanna_map_screen.dart';
+import 'sandbox/world_map_screen.dart';
+import 'sandbox/biome_sandbox_screen.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/lesson_service.dart';
 import '../../services/progress_service.dart';
@@ -231,6 +233,49 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
 
   // Lets a student open Farm/Savanna maps on their own, using a default
   // word bank, without needing a teacher-assigned lesson first.
+  // TEMPORARY test harness for the new sandbox engine (World Map + Biome
+  // Sandbox). Uses the default free-play word bank since it's not yet
+  // wired to teacher-assigned lessons. onOpenWord just shows a placeholder
+  // since the Universal Learning Panel (Phase 3) isn't built yet.
+  void _openSandboxPreview(BuildContext context) {
+    final words = defaultMapWordsFor(widget.ageGroup);
+    final previewLesson = Lesson(
+      id: 'sandbox_preview',
+      teacherUid: '',
+      title: 'Sandbox Preview',
+      subject: 'reading',
+      ageGroup: widget.ageGroup,
+      words: words,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WorldMapScreen(
+          ageGroup: widget.ageGroup,
+          kidId: widget.kidId,
+          onEnterBiome: (biome) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BiomeSandboxScreen(
+                  biome: biome,
+                  lesson: previewLesson,
+                  kidId: widget.kidId,
+                  onOpenWord: (word) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Would open Learning Panel for "${word.word}" (Phase 3 — not built yet)')),
+                    );
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   void _openFreePlayMap(BuildContext context, String theme) {
     final words = defaultMapWordsFor(widget.ageGroup);
     if (words.isEmpty) return; // safety net, shouldn't happen with the built-in banks
@@ -482,6 +527,27 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                             const Text('Animal Hunt 🦁', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF8A6A2A))),
                             const Spacer(),
                             const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFE8B95E), size: 16),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // TEMPORARY — new sandbox engine preview, not yet
+                    // replacing Farm/Savanna. Remove this card once the
+                    // sandbox fully replaces the old maps.
+                    GestureDetector(
+                      onTap: () => _openSandboxPreview(context),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        decoration: BoxDecoration(color: const Color(0xFF9575CD).withOpacity(0.20), borderRadius: BorderRadius.circular(20)),
+                        child: Row(
+                          children: [
+                            Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFF9575CD), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.public_rounded, color: Colors.white, size: 24)),
+                            const SizedBox(width: 16),
+                            const Text('Sandbox Preview 🌍 (WIP)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF5E4A94))),
+                            const Spacer(),
+                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF9575CD), size: 16),
                           ],
                         ),
                       ),
