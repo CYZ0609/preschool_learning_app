@@ -12,6 +12,7 @@ import 'farm_map_screen.dart';
 import 'savanna_map_screen.dart';
 import 'sandbox/world_map_screen.dart';
 import 'sandbox/biome_sandbox_screen.dart';
+import 'sandbox/learning_panel/universal_learning_panel.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/lesson_service.dart';
 import '../../services/progress_service.dart';
@@ -263,8 +264,20 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                   lesson: previewLesson,
                   kidId: widget.kidId,
                   onOpenWord: (word) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Would open Learning Panel for "${word.word}" (Phase 3 — not built yet)')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => UniversalLearningPanel(
+                          word: word,
+                          ageGroup: widget.ageGroup,
+                          onFinished: () {
+                            Navigator.pop(context); // close panel
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('"${word.word}" learned! (Unlock finale — Phase 4 — not built yet)')),
+                            );
+                          },
+                        ),
+                      ),
                     );
                   },
                 ),
