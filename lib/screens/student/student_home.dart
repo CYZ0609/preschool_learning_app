@@ -8,11 +8,10 @@ import 'reading_game_screen.dart';
 import 'arithmetic_game_screen.dart';
 import 'writing_tracing_screen.dart';
 import 'teach_screen.dart';
-import 'farm_map_screen.dart';
-import 'savanna_map_screen.dart';
 import 'sandbox/world_map_screen.dart';
 import 'sandbox/biome_sandbox_screen.dart';
 import 'sandbox/learning_panel/universal_learning_panel.dart';
+import 'sandbox/unlock_finale_screen.dart';
 import '../../services/screen_time_service.dart';
 import '../../services/lesson_service.dart';
 import '../../services/progress_service.dart';
@@ -190,30 +189,10 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
     }
 
     if (lesson.subject == 'reading' || lesson.subject == 'listening') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => lesson.subject == 'reading'
-              ? FarmMapScreen(
-                  lesson: lesson,
-                  kidId: widget.kidId,
-                  onAllWordsExplored: () {
-                    Navigator.pop(context);
-                    _markAssignmentDone(assignment['id']);
-                    _navigateToGame(context, subject);
-                  },
-                )
-              : SavannaMapScreen(
-                  lesson: lesson,
-                  kidId: widget.kidId,
-                  onAllWordsExplored: () {
-                    Navigator.pop(context);
-                    _markAssignmentDone(assignment['id']);
-                    _navigateToGame(context, subject);
-                  },
-                ),
-        ),
-      );
+      _launchSandbox(lesson, onAllDone: () {
+        _markAssignmentDone(assignment['id']);
+        _navigateToGame(context, subject);
+      });
       return;
     }
 
@@ -232,23 +211,11 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
     );
   }
 
-  // Lets a student open Farm/Savanna maps on their own, using a default
-  // word bank, without needing a teacher-assigned lesson first.
-  // TEMPORARY test harness for the new sandbox engine (World Map + Biome
-  // Sandbox). Uses the default free-play word bank since it's not yet
-  // wired to teacher-assigned lessons. onOpenWord just shows a placeholder
-  // since the Universal Learning Panel (Phase 3) isn't built yet.
-  void _openSandboxPreview(BuildContext context) {
-    final words = defaultMapWordsFor(widget.ageGroup);
-    final previewLesson = Lesson(
-      id: 'sandbox_preview',
-      teacherUid: '',
-      title: 'Sandbox Preview',
-      subject: 'reading',
-      ageGroup: widget.ageGroup,
-      words: words,
-    );
-
+  // Unified entry point into the sandbox engine (World Map -> Biome
+  // Sandbox -> Learning Panel -> Unlock Finale) for a given lesson. Used
+  // both by teacher-assigned lessons and free-play. [onAllDone] fires once
+  // the child returns to Student Home (not after every single word).
+  void _launchSandbox(Lesson lesson, {VoidCallback? onAllDone}) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -261,7 +228,7 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
               MaterialPageRoute(
                 builder: (_) => BiomeSandboxScreen(
                   biome: biome,
-                  lesson: previewLesson,
+                  lesson: lesson,
                   kidId: widget.kidId,
                   onOpenWord: (word) {
                     Navigator.push(
@@ -272,8 +239,15 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                           ageGroup: widget.ageGroup,
                           onFinished: () {
                             Navigator.pop(context); // close panel
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('"${word.word}" learned! (Unlock finale — Phase 4 — not built yet)')),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => UnlockFinaleScreen(
+                                  word: word,
+                                  kidId: widget.kidId,
+                                  onDone: () => Navigator.pop(context), // close finale, back to sandbox
+                                ),
+                              ),
                             );
                           },
                         ),
@@ -286,36 +260,23 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
           },
         ),
       ),
-    );
+    ).then((_) => onAllDone?.call());
   }
 
-  void _openFreePlayMap(BuildContext context, String theme) {
+  // Lets a student open the sandbox on their own with a default word bank,
+  // without needing a teacher-assigned lesson first.
+  void _openFreePlaySandbox(BuildContext context) {
     final words = defaultMapWordsFor(widget.ageGroup);
     if (words.isEmpty) return; // safety net, shouldn't happen with the built-in banks
     final freePlayLesson = Lesson(
       id: 'freeplay',
       teacherUid: '',
-      title: theme == 'farm' ? 'Farm Explore' : 'Animal Hunt',
-      subject: theme == 'farm' ? 'reading' : 'listening',
+      title: 'Explore & Learn',
+      subject: 'reading',
       ageGroup: widget.ageGroup,
       words: words,
     );
-
-    void onDone() {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Great exploring! 🎉'), backgroundColor: Color(0xFF4DD9C0)),
-      );
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => theme == 'farm'
-            ? FarmMapScreen(lesson: freePlayLesson, kidId: widget.kidId, onAllWordsExplored: onDone)
-            : SavannaMapScreen(lesson: freePlayLesson, kidId: widget.kidId, onAllWordsExplored: onDone),
-      ),
-    );
+    _launchSandbox(freePlayLesson);
   }
 
   void _navigateToGame(BuildContext context, String subject) {
@@ -510,46 +471,7 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                     const Text('Explore', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
                     const SizedBox(height: 12),
                     GestureDetector(
-                      onTap: () => _openFreePlayMap(context, 'farm'),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        decoration: BoxDecoration(color: const Color(0xFF7CB86D).withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-                        child: Row(
-                          children: [
-                            Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFF7CB86D), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.grass_rounded, color: Colors.white, size: 24)),
-                            const SizedBox(width: 16),
-                            const Text('Farm Explore 🚜', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF4A7A3D))),
-                            const Spacer(),
-                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF7CB86D), size: 16),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: () => _openFreePlayMap(context, 'savanna'),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        decoration: BoxDecoration(color: const Color(0xFFE8B95E).withOpacity(0.20), borderRadius: BorderRadius.circular(20)),
-                        child: Row(
-                          children: [
-                            Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFE8B95E), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.travel_explore_rounded, color: Colors.white, size: 24)),
-                            const SizedBox(width: 16),
-                            const Text('Animal Hunt 🦁', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF8A6A2A))),
-                            const Spacer(),
-                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFE8B95E), size: 16),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // TEMPORARY — new sandbox engine preview, not yet
-                    // replacing Farm/Savanna. Remove this card once the
-                    // sandbox fully replaces the old maps.
-                    GestureDetector(
-                      onTap: () => _openSandboxPreview(context),
+                      onTap: () => _openFreePlaySandbox(context),
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -558,7 +480,7 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                           children: [
                             Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFF9575CD), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.public_rounded, color: Colors.white, size: 24)),
                             const SizedBox(width: 16),
-                            const Text('Sandbox Preview 🌍 (WIP)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF5E4A94))),
+                            const Text('Explore the World 🌍', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF5E4A94))),
                             const Spacer(),
                             const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF9575CD), size: 16),
                           ],

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../services/lesson_service.dart';
+import '../../../services/build_mode_service.dart';
+import '../../../services/unlock_service.dart';
 import 'world_map_screen.dart';
 
 /// Phase 2: the top-down grid sandbox for one biome, in Play Mode.
@@ -53,6 +55,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   final Random rand = Random();
   final TransformationController _viewController = TransformationController();
 
+  bool buildMode = false;
+  List<String> unlockedWords = [];
+  List<PlacedItem> placedItems = [];
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +70,7 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
       );
     });
     _roamTimer = Timer.periodic(const Duration(seconds: 2, milliseconds: 500), (_) => _stepAnimals());
+    _loadBuildMode();
 
     // Lock the initial camera on the trunk, per the spec.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -71,6 +78,52 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
       final dy = (trunkY + trunkSize / 2) * cellSize - 150;
       _viewController.value = Matrix4.identity()..translate(-dx, -dy);
     });
+  }
+
+  Future<void> _loadBuildMode() async {
+    final unlocked = await UnlockService.loadUnlockedWords(widget.kidId);
+    final saved = await BuildModeService.loadPlacements(widget.kidId, widget.biome.name);
+    if (!mounted) return;
+    setState(() {
+      unlockedWords = unlocked;
+      placedItems = saved;
+    });
+  }
+
+  LessonWord? _wordFor(String itemId) {
+    try {
+      return widget.lesson.words.firstWhere((w) => w.word == itemId);
+    } catch (_) {
+      return null; // unlocked in a different lesson/biome — no art to show here
+    }
+  }
+
+  Offset? _nextOpenCell() {
+    for (int y = trunkY + trunkSize + 1; y < gridRows; y++) {
+      for (int x = 0; x < gridCols; x++) {
+        final occupied = placedItems.any((p) => p.gridX.round() == x && p.gridY.round() == y);
+        if (!occupied && !_isTrunkCell(x, y)) return Offset(x.toDouble(), y.toDouble());
+      }
+    }
+    return null; // grid full
+  }
+
+  Future<void> _placeItem(String itemId) async {
+    final cell = _nextOpenCell();
+    if (cell == null) return;
+    setState(() {
+      placedItems.add(PlacedItem(itemId: itemId, gridX: cell.dx, gridY: cell.dy));
+      unlockedWords.remove(itemId);
+    });
+    await BuildModeService.savePlacements(widget.kidId, widget.biome.name, placedItems);
+  }
+
+  Future<void> _packUpItem(PlacedItem item) async {
+    setState(() {
+      placedItems.remove(item);
+      unlockedWords.add(item.itemId);
+    });
+    await BuildModeService.savePlacements(widget.kidId, widget.biome.name, placedItems);
   }
 
   @override
@@ -237,7 +290,22 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                       child: Transform(
                         alignment: Alignment.center,
                         transform: Matrix4.identity()..scale(animal.facingRight ? 1.0 : -1.0, 1.0),
-                        child: Text(animal.emoji, style: const TextStyle(fontSize: 36)),
+                        child: Text(animal.emoji, style: const TextStyle(fontSize: 36)),                      ),
+                    ),
+                  // Placed items (Build Mode)
+                  for (final placed in placedItems)
+                    Positioned(
+                      left: placed.gridX * cellSize,
+                      top: placed.gridY * cellSize,
+                      child: GestureDetector(
+                        onTap: buildMode ? () => _packUpItem(placed) : null,
+                        child: SizedBox(
+                          width: cellSize,
+                          height: cellSize,
+                          child: _wordFor(placed.itemId) != null
+                              ? Image.asset(_wordFor(placed.itemId)!.imageAsset, fit: BoxFit.contain)
+                              : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
+                        ),
                       ),
                     ),
                 ],
@@ -247,16 +315,81 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: GestureDetector(
-                onTap: _confirmExit,
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                  child: const Icon(Icons.map_rounded, color: Color(0xFF333333)),
-                ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: _confirmExit,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                      child: const Icon(Icons.map_rounded, color: Color(0xFF333333)),
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => setState(() => buildMode = !buildMode),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: buildMode ? const Color(0xFFFFAB40) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.construction_rounded, color: buildMode ? Colors.white : const Color(0xFF333333), size: 18),
+                          const SizedBox(width: 6),
+                          Text(buildMode ? 'Building...' : 'Build',
+                              style: TextStyle(color: buildMode ? Colors.white : const Color(0xFF333333), fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
+          if (buildMode)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 110,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: unlockedWords.isEmpty
+                    ? const Center(child: Text('No unlocked items yet — learn some words first! 🔓', style: TextStyle(color: Color(0xFF888888))))
+                    : ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: unlockedWords.map((itemId) {
+                          final w = _wordFor(itemId);
+                          return GestureDetector(
+                            onTap: () => _placeItem(itemId),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 12),
+                              width: 70,
+                              decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(14)),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 44, height: 44,
+                                    child: w != null
+                                        ? Image.asset(w.imageAsset, fit: BoxFit.contain)
+                                        : const Icon(Icons.emoji_nature_rounded, color: Color(0xFF888888)),
+                                  ),
+                                  Text(itemId, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+              ),
+            ),
         ],
       ),
     );
