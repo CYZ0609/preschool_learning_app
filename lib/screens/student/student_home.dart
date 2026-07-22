@@ -9,6 +9,7 @@ import 'arithmetic_game_screen.dart';
 import 'writing_tracing_screen.dart';
 import 'teach_screen.dart';
 import 'sandbox/world_map_screen.dart';
+import 'sandbox/flame_world_map_screen.dart';
 import 'sandbox/biome_sandbox_screen.dart';
 import 'sandbox/learning_panel/universal_learning_panel.dart';
 import 'sandbox/unlock_finale_screen.dart';
@@ -219,9 +220,7 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => WorldMapScreen(
-          ageGroup: widget.ageGroup,
-          kidId: widget.kidId,
+        builder: (_) => FlameWorldMapScreen(
           onEnterBiome: (biome) {
             Navigator.push(
               context,

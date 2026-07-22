@@ -40,10 +40,10 @@ dependencies:
   flutter_tts: ^4.2.5
   speech_to_text: ^7.4.0
   http: ^1.6.0
-  flutter_sound: ^9.2.13
   just_audio: ^0.9.40
   permission_handler: ^11.3.1
-  
+  flame: ^1.18.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

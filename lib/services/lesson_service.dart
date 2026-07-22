@@ -4,13 +4,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 /// A single flashcard word inside a lesson.
 class LessonWord {
   final String word;
-  final String imageAsset; // e.g. assets/images/cow.png
+  final String imageAsset; // e.g. assets/images/cow.png ('' if none — use emoji instead)
+  final String? emoji;     // fallback art when no real image asset exists yet
+  final int difficulty;    // 1 = easiest ... higher = harder; used to sort inventory
   final double? positionX; // 0.0-1.0 fractional X on the map; null = auto-layout
   final double? positionY; // 0.0-1.0 fractional Y on the map; null = auto-layout
 
   LessonWord({
     required this.word,
     required this.imageAsset,
+    this.emoji,
+    this.difficulty = 1,
     this.positionX,
     this.positionY,
   });
@@ -18,6 +22,8 @@ class LessonWord {
   Map<String, dynamic> toMap() => {
         'word': word,
         'imageAsset': imageAsset,
+        'emoji': emoji,
+        'difficulty': difficulty,
         'positionX': positionX,
         'positionY': positionY,
       };
@@ -25,6 +31,8 @@ class LessonWord {
   factory LessonWord.fromMap(Map<String, dynamic> map) => LessonWord(
         word: map['word'] ?? '',
         imageAsset: map['imageAsset'] ?? '',
+        emoji: map['emoji'] as String?,
+        difficulty: (map['difficulty'] as num?)?.toInt() ?? 1,
         positionX: (map['positionX'] as num?)?.toDouble(),
         positionY: (map['positionY'] as num?)?.toDouble(),
       );

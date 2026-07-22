@@ -39,6 +39,19 @@ extension BiomeInfo on Biome {
     }
   }
 
+  // Real floor art per biome, provided by the teacher/dev.
+  String get floorAsset {
+    switch (this) {
+      case Biome.outdoorField: return 'assets/images/bg_plains.png';
+      case Biome.indoorHome: return 'assets/images/bg_city.png';
+      case Biome.forest: return 'assets/images/bg_forest.png';
+      case Biome.desert: return 'assets/images/bg_desert.png';
+      case Biome.snowPolar: return 'assets/images/bg_snow.png';
+      case Biome.ocean: return 'assets/images/bg_ocean.png';
+      case Biome.space: return 'assets/images/bg_space.png';
+    }
+  }
+
   // Fractional position (0.0-1.0) on the 2048x1080 world map.
   Offset get mapPosition {
     switch (this) {
