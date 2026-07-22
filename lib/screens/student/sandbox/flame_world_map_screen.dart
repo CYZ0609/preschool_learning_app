@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
@@ -51,7 +52,27 @@ class FlameWorldMapScreen extends StatelessWidget {
           // filling the available space, which is what caused black
           // edges on wider/taller tablet aspect ratios.
           Positioned.fill(
-            child: GameWidget(game: WorldMapFlameGame(onEnterBiome: onEnterBiome)),
+            child: GameWidget(
+              game: WorldMapFlameGame(onEnterBiome: onEnterBiome),
+              loadingBuilder: (context) => const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+              // If onLoad() throws (e.g. world_map.png missing or not
+              // declared correctly), this shows the actual error instead
+              // of the game silently appearing frozen/unresponsive.
+              errorBuilder: (context, error) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Failed to load the world map:\n$error\n\n'
+                    'Check that assets/images/world_map.png exists and '
+                    'that you ran flutter pub get after adding it.',
+                    style: const TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
           ),
           SafeArea(
             child: Padding(
@@ -94,7 +115,17 @@ class WorldMapFlameGame extends FlameGame with ScaleDetector {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    final mapSpriteImage = await images.load('world_map.png');
+    late final ui.Image mapSpriteImage;
+    try {
+      mapSpriteImage = await images.load('world_map.png');
+      debugPrint('[WorldMap] world_map.png loaded successfully.');
+    } catch (e) {
+      debugPrint('[WorldMap] FAILED to load world_map.png: $e');
+      debugPrint('[WorldMap] Check: file exists at assets/images/world_map.png, '
+          'and you ran flutter pub get after adding it.');
+      rethrow; // surfaces in GameWidget's errorBuilder instead of failing silently
+    }
+
     mapSprite = SpriteComponent(
       sprite: Sprite(mapSpriteImage),
       size: Vector2(_worldWidth, _worldHeight),

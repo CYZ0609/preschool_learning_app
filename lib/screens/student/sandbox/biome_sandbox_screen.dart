@@ -168,6 +168,7 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   @override
   void dispose() {
     _roamTimer?.cancel();
+    _viewController.dispose();
     super.dispose();
   }
 
@@ -218,6 +219,11 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
         onTapUnlocked: (word) {
           Navigator.pop(context);
           setState(() => selectedItemId = word.word); // enter placement mode
+        },
+        onMockUnlock: (word) {
+          if (!unlockedWords.contains(word)) {
+            setState(() => unlockedWords.add(word));
+          }
         },
       ),
     );
@@ -539,12 +545,14 @@ class _InventoryModal extends StatefulWidget {
   final List<String> unlockedWords;
   final void Function(LessonWord word) onTapLocked;
   final void Function(LessonWord word) onTapUnlocked;
+  final void Function(String word) onMockUnlock; // syncs test-flow unlocks back to the parent screen
 
   const _InventoryModal({
     required this.catalog,
     required this.unlockedWords,
     required this.onTapLocked,
     required this.onTapUnlocked,
+    required this.onMockUnlock,
   });
 
   @override
@@ -585,6 +593,7 @@ class _InventoryModalState extends State<_InventoryModal> {
             onPressed: () {
               Navigator.pop(context);
               setState(() => localUnlocked.add(word.word));
+              widget.onMockUnlock(word.word); // sync back to parent so it survives modal close/reopen
             },
             child: const Text('Correct Answer', style: TextStyle(color: Color(0xFF4DD9C0))),
           ),
