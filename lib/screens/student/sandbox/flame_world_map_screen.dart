@@ -79,10 +79,12 @@ class _FlameWorldMapScreenState extends State<FlameWorldMapScreen> {
                   Vector2(details.focalPoint.dx, details.focalPoint.dy),
                   details.scale,
                 );
+                setState(() {}); // refresh the on-screen camera pos readout
               },
               onScaleEnd: (details) {
                 debugPrint('[WorldMap] Flutter GestureDetector: onScaleEnd');
                 game.handleScaleEnd();
+                setState(() {});
               },
               child: GameWidget(
                 game: game,
