@@ -2,12 +2,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
-import 'package:flame/events.dart';
 import 'world_map_screen.dart' show Biome;
 
-/// EDIT to your actual world_map.png pixel dimensions.
-const double _worldWidth = 2048;
-const double _worldHeight = 1152;
+/// Real world_map.png pixel dimensions.
+const double _worldWidth = 2816;
+const double _worldHeight = 1536;
 const double _minZoom = 0.6;
 const double _maxZoom = 2.5;
 
@@ -36,10 +35,31 @@ class _HotspotDef {
   }
 }
 
-class FlameWorldMapScreen extends StatelessWidget {
+/// Real screen wrapper. IMPORTANT: pan/zoom/tap are now driven by a plain
+/// Flutter GestureDetector wrapping the GameWidget, NOT by Flame's own
+/// ScaleDetector mixin. Testing showed Flame's mixin-based gesture
+/// dispatch never fired at all in this project's setup (debug logs
+/// confirmed zero callbacks despite dragging/tapping) — rather than debug
+/// Flame's internal wiring blind, we use Flutter's own well-understood
+/// GestureDetector and manually forward the events into the game via
+/// plain public methods. This is a standard, reliable pattern.
+class FlameWorldMapScreen extends StatefulWidget {
   final void Function(Biome biome) onEnterBiome;
 
   const FlameWorldMapScreen({super.key, required this.onEnterBiome});
+
+  @override
+  State<FlameWorldMapScreen> createState() => _FlameWorldMapScreenState();
+}
+
+class _FlameWorldMapScreenState extends State<FlameWorldMapScreen> {
+  late final WorldMapFlameGame game;
+
+  @override
+  void initState() {
+    super.initState();
+    game = WorldMapFlameGame(onEnterBiome: widget.onEnterBiome);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,28 +67,38 @@ class FlameWorldMapScreen extends StatelessWidget {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Positioned.fill (not just a bare child) — a bare GameWidget
-          // inside a Stack can size to its own intrinsic size instead of
-          // filling the available space, which is what caused black
-          // edges on wider/taller tablet aspect ratios.
           Positioned.fill(
-            child: GameWidget(
-              game: WorldMapFlameGame(onEnterBiome: onEnterBiome),
-              loadingBuilder: (context) => const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
-              // If onLoad() throws (e.g. world_map.png missing or not
-              // declared correctly), this shows the actual error instead
-              // of the game silently appearing frozen/unresponsive.
-              errorBuilder: (context, error) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Failed to load the world map:\n$error\n\n'
-                    'Check that assets/images/world_map.png exists and '
-                    'that you ran flutter pub get after adding it.',
-                    style: const TextStyle(color: Colors.white),
-                    textAlign: TextAlign.center,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque, // ensures empty/transparent areas still receive touches
+              onScaleStart: (details) {
+                debugPrint('[WorldMap] Flutter GestureDetector: onScaleStart at ${details.focalPoint}');
+                game.handleScaleStart(Vector2(details.focalPoint.dx, details.focalPoint.dy));
+              },
+              onScaleUpdate: (details) {
+                game.handleScaleUpdate(
+                  Vector2(details.focalPoint.dx, details.focalPoint.dy),
+                  details.scale,
+                );
+              },
+              onScaleEnd: (details) {
+                debugPrint('[WorldMap] Flutter GestureDetector: onScaleEnd');
+                game.handleScaleEnd();
+              },
+              child: GameWidget(
+                game: game,
+                loadingBuilder: (context) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+                errorBuilder: (context, error) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Failed to load the world map:\n$error\n\n'
+                      'Check that assets/images/world_map.png exists and '
+                      'that you ran flutter pub get after adding it.',
+                      style: const TextStyle(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
               ),
@@ -93,12 +123,7 @@ class FlameWorldMapScreen extends StatelessWidget {
   }
 }
 
-/// Everything — pan, pinch-zoom, AND tap-to-select-biome — goes through
-/// this single ScaleDetector. Mixing a second, separate Flame gesture
-/// system (TapCallbacks on child components) alongside it caused the two
-/// to compete in the gesture arena, which is what made taps flaky. A
-/// single source of truth for all touch input avoids that entirely.
-class WorldMapFlameGame extends FlameGame with ScaleDetector {
+class WorldMapFlameGame extends FlameGame {
   final void Function(Biome biome) onEnterBiome;
   WorldMapFlameGame({required this.onEnterBiome});
 
@@ -108,8 +133,8 @@ class WorldMapFlameGame extends FlameGame with ScaleDetector {
   double _startZoom = 1.0;
   Vector2 _lastFocalScreenPos = Vector2.zero();
   Vector2 _gestureStartScreenPos = Vector2.zero();
-  double _totalMovement = 0; // accumulated screen-space movement this gesture
-  static const double _tapMovementThreshold = 8; // px — below this, treat as a tap not a pan
+  double _totalMovement = 0;
+  static const double _tapMovementThreshold = 8;
 
   @override
   Future<void> onLoad() async {
@@ -121,9 +146,7 @@ class WorldMapFlameGame extends FlameGame with ScaleDetector {
       debugPrint('[WorldMap] world_map.png loaded successfully.');
     } catch (e) {
       debugPrint('[WorldMap] FAILED to load world_map.png: $e');
-      debugPrint('[WorldMap] Check: file exists at assets/images/world_map.png, '
-          'and you ran flutter pub get after adding it.');
-      rethrow; // surfaces in GameWidget's errorBuilder instead of failing silently
+      rethrow;
     }
 
     mapSprite = SpriteComponent(
@@ -133,8 +156,6 @@ class WorldMapFlameGame extends FlameGame with ScaleDetector {
     );
     world.add(mapSprite);
 
-    // Hotspots are purely visual here (debug red boxes) — tap detection
-    // for them is handled centrally below, not via their own TapCallbacks.
     for (final def in _hotspotDefs) {
       final visual = _HotspotVisual(position: def.position, size: def.size);
       hotspotVisuals.add(visual);
@@ -161,64 +182,54 @@ class WorldMapFlameGame extends FlameGame with ScaleDetector {
     camera.viewfinder.position = Vector2(clampedX, clampedY);
   }
 
-  /// Converts a screen-space point (e.g. a tap position) into world-space
-  /// coordinates, given the camera's current pan/zoom. Since the
-  /// viewfinder's anchor is Anchor.center, viewfinder.position maps to
-  /// the exact center of the screen.
   Vector2 _screenToWorld(Vector2 screenPoint) {
     final screenCenter = size / 2;
     final offsetFromCenter = (screenPoint - screenCenter) / camera.viewfinder.zoom;
     return camera.viewfinder.position + offsetFromCenter;
   }
 
-  @override
-  void onScaleStart(ScaleStartInfo info) {
+  // --- Public methods, called directly by the wrapping Flutter GestureDetector ---
+
+  void handleScaleStart(Vector2 screenPos) {
     _startZoom = camera.viewfinder.zoom;
-    _lastFocalScreenPos = info.eventPosition.global.clone();
-    _gestureStartScreenPos = info.eventPosition.global.clone();
+    _lastFocalScreenPos = screenPos.clone();
+    _gestureStartScreenPos = screenPos.clone();
     _totalMovement = 0;
   }
 
-  @override
-  void onScaleUpdate(ScaleUpdateInfo info) {
-    final currentScreenPos = info.eventPosition.global;
-
-    // PAN — accumulate incrementally frame-to-frame (this is the fix:
-    // previously this subtracted only the latest incremental delta from a
-    // FIXED start position every frame, which barely moved the camera).
-    final screenDelta = currentScreenPos - _lastFocalScreenPos;
+  void handleScaleUpdate(Vector2 screenPos, double scale) {
+    final screenDelta = screenPos - _lastFocalScreenPos;
     _totalMovement += screenDelta.length;
 
-    final newZoom = (_startZoom * info.scale.global.x).clamp(_minZoom, _maxZoom);
+    final newZoom = (_startZoom * scale).clamp(_minZoom, _maxZoom);
     camera.viewfinder.zoom = newZoom;
 
     final worldDelta = screenDelta / newZoom;
     camera.viewfinder.position = camera.viewfinder.position - worldDelta;
 
     _clampCamera();
-    _lastFocalScreenPos = currentScreenPos.clone();
+    _lastFocalScreenPos = screenPos.clone();
   }
 
-  @override
-  void onScaleEnd(ScaleEndInfo info) {
+  void handleScaleEnd() {
     _clampCamera();
-
-    // A gesture that barely moved is a TAP, not a pan/pinch. Check it
-    // against every hotspot's world-space rect.
     if (_totalMovement < _tapMovementThreshold) {
       final worldPoint = _screenToWorld(_gestureStartScreenPos);
+      debugPrint('[WorldMap] Treated as TAP at world position: $worldPoint');
+      bool hit = false;
       for (final def in _hotspotDefs) {
         if (def.contains(worldPoint)) {
+          debugPrint('[WorldMap] HIT hotspot: ${def.biome}');
+          hit = true;
           onEnterBiome(def.biome);
           break;
         }
       }
+      if (!hit) debugPrint('[WorldMap] Tap did not land on any hotspot.');
     }
   }
 }
 
-/// Purely visual debug rectangle over a signboard — no tap handling of
-/// its own; see WorldMapFlameGame's unified onScaleEnd for tap detection.
 class _HotspotVisual extends PositionComponent {
   _HotspotVisual({required Vector2 position, required Vector2 size}) : super(position: position, size: size);
 
