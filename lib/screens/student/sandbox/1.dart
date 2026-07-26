@@ -65,9 +65,8 @@ class _FlameWorldMapScreenState extends State<FlameWorldMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SizedBox.expand(
-        child: Stack(
+      backgroundColor: const Color.fromARGB(255, 172, 41, 41),
+      body: Stack(
         children: [
           Positioned.fill(
             child: InteractiveViewer(
@@ -140,7 +139,6 @@ class _FlameWorldMapScreenState extends State<FlameWorldMapScreen> {
             ),
           ),
         ],
-      ),
       ),
     );
   }

@@ -248,200 +248,204 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          InteractiveViewer(
-            transformationController: _viewController,
-            minScale: 0.8,
-            maxScale: 2.5,
-            boundaryMargin: EdgeInsets.zero,
-            constrained: false,
-            child: DragTarget<String>(
-              onWillAcceptWithDetails: (_) => true,
-              onAcceptWithDetails: (details) {
-                // details.offset is in GLOBAL screen coordinates. Since this
-                // DragTarget is itself a descendant of the InteractiveViewer's
-                // transformed content, converting via ITS OWN RenderBox
-                // automatically accounts for the current pan/zoom — no
-                // manual matrix math needed.
-                final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
-                if (renderBox == null) return;
-                final local = renderBox.globalToLocal(details.offset);
-                final gridX = (local.dx / cellSize).floor();
-                final gridY = (local.dy / cellSize).floor();
-                _placeItemAt(details.data, gridX, gridY);
-              },
-              builder: (context, candidateData, rejectedData) {
-                return SizedBox(
-                  key: _gridKey,
-                  width: gridCols * cellSize,
-                  height: gridRows * cellSize,
-                  child: Stack(
-                    children: [
-                      bgFailed
-                          ? CustomPaint(
-                              size: Size(gridCols * cellSize, gridRows * cellSize),
-                              painter: _TerrainPainter(biome: widget.biome, cols: gridCols, rows: gridRows, cellSize: cellSize, showGrid: buildMode),
-                            )
-                          : Image.asset(
-                              widget.biome.floorAsset,
-                              width: gridCols * cellSize,
-                              height: gridRows * cellSize,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) {
-                                // Floor art missing/misnamed — fall back to the
-                                // color+grid painter instead of a broken-image icon.
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (mounted && !bgFailed) setState(() => bgFailed = true);
-                                });
-                                return CustomPaint(
+      body: SizedBox.expand(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                transformationController: _viewController,
+                minScale: 0.8,
+                maxScale: 2.5,
+                boundaryMargin: EdgeInsets.zero,
+                constrained: false,
+                child: DragTarget<String>(
+                  onWillAcceptWithDetails: (_) => true,
+                  onAcceptWithDetails: (details) {
+                    // details.offset is in GLOBAL screen coordinates. Since this
+                    // DragTarget is itself a descendant of the InteractiveViewer's
+                    // transformed content, converting via ITS OWN RenderBox
+                    // automatically accounts for the current pan/zoom — no
+                    // manual matrix math needed.
+                    final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
+                    if (renderBox == null) return;
+                    final local = renderBox.globalToLocal(details.offset);
+                    final gridX = (local.dx / cellSize).floor();
+                    final gridY = (local.dy / cellSize).floor();
+                    _placeItemAt(details.data, gridX, gridY);
+                  },
+                  builder: (context, candidateData, rejectedData) {
+                    return SizedBox(
+                      key: _gridKey,
+                      width: gridCols * cellSize,
+                      height: gridRows * cellSize,
+                      child: Stack(
+                        children: [
+                          bgFailed
+                              ? CustomPaint(
                                   size: Size(gridCols * cellSize, gridRows * cellSize),
                                   painter: _TerrainPainter(biome: widget.biome, cols: gridCols, rows: gridRows, cellSize: cellSize, showGrid: buildMode),
-                                );
-                              },
+                                )
+                              : Image.asset(
+                                  widget.biome.floorAsset,
+                                  width: gridCols * cellSize,
+                                  height: gridRows * cellSize,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) {
+                                    // Floor art missing/misnamed — fall back to the
+                                    // color+grid painter instead of a broken-image icon.
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      if (mounted && !bgFailed) setState(() => bgFailed = true);
+                                    });
+                                    return CustomPaint(
+                                      size: Size(gridCols * cellSize, gridRows * cellSize),
+                                      painter: _TerrainPainter(biome: widget.biome, cols: gridCols, rows: gridRows, cellSize: cellSize, showGrid: buildMode),
+                                    );
+                                  },
+                                ),
+                          // Grid lines ONLY visible in Build Mode, layered over
+                          // the real floor image (the painter above only draws
+                          // lines itself in the fallback-color case).
+                          if (buildMode && !bgFailed)
+                            CustomPaint(
+                              size: Size(gridCols * cellSize, gridRows * cellSize),
+                              painter: _GridLinesPainter(cols: gridCols, rows: gridRows, cellSize: cellSize),
                             ),
-                      // Grid lines ONLY visible in Build Mode, layered over
-                      // the real floor image (the painter above only draws
-                      // lines itself in the fallback-color case).
-                      if (buildMode && !bgFailed)
-                        CustomPaint(
-                          size: Size(gridCols * cellSize, gridRows * cellSize),
-                          painter: _GridLinesPainter(cols: gridCols, rows: gridRows, cellSize: cellSize),
-                        ),
-                      // Trunk landmark
-                      Positioned(
-                        left: trunkX * cellSize,
-                        top: trunkY * cellSize,
-                        child: GestureDetector(
-                          onTap: _openInventoryModal,
-                          child: TweenAnimationBuilder<double>(
-                            tween: Tween(begin: 0, end: 1),
-                            duration: const Duration(seconds: 2),
-                            curve: Curves.easeInOut,
-                            builder: (context, value, child) => Transform.translate(
-                              offset: Offset(0, -4 * (0.5 - (value - 0.5).abs()) * 2),
-                              child: child,
-                            ),
-                            child: Container(
-                              width: trunkSize * cellSize,
-                              height: trunkSize * cellSize,
-                              alignment: Alignment.center,
-                              child: const Text('🎁', style: TextStyle(fontSize: 56)),
+                          // Trunk landmark
+                          Positioned(
+                            left: trunkX * cellSize,
+                            top: trunkY * cellSize,
+                            child: GestureDetector(
+                              onTap: _openInventoryModal,
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween(begin: 0, end: 1),
+                                duration: const Duration(seconds: 2),
+                                curve: Curves.easeInOut,
+                                builder: (context, value, child) => Transform.translate(
+                                  offset: Offset(0, -4 * (0.5 - (value - 0.5).abs()) * 2),
+                                  child: child,
+                                ),
+                                child: Container(
+                                  width: trunkSize * cellSize,
+                                  height: trunkSize * cellSize,
+                                  alignment: Alignment.center,
+                                  child: const Text('🎁', style: TextStyle(fontSize: 56)),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          // Roaming animals
+                          for (final animal in animals)
+                            AnimatedPositioned(
+                              duration: const Duration(milliseconds: 900),
+                              curve: Curves.easeInOut,
+                              left: animal.gridX * cellSize,
+                              top: animal.gridY * cellSize,
+                              child: Transform(
+                                alignment: Alignment.center,
+                                transform: Matrix4.identity()..scale(animal.facingRight ? 1.0 : -1.0, 1.0),
+                                child: Text(animal.emoji, style: const TextStyle(fontSize: 36)),
+                              ),
+                            ),
+                          // Placed items (Build Mode)
+                          for (final placed in placedItems)
+                            Positioned(
+                              left: placed.gridX * cellSize,
+                              top: placed.gridY * cellSize,
+                              child: GestureDetector(
+                                onTap: buildMode ? () => _packUpItem(placed) : null,
+                                child: SizedBox(
+                                  width: cellSize,
+                                  height: cellSize,
+                                  child: _wordFor(placed.itemId) != null
+                                      ? Image.asset(_wordFor(placed.itemId)!.imageAsset, fit: BoxFit.contain)
+                                      : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      // Roaming animals
-                      for (final animal in animals)
-                        AnimatedPositioned(
-                          duration: const Duration(milliseconds: 900),
-                          curve: Curves.easeInOut,
-                          left: animal.gridX * cellSize,
-                          top: animal.gridY * cellSize,
-                          child: Transform(
-                            alignment: Alignment.center,
-                            transform: Matrix4.identity()..scale(animal.facingRight ? 1.0 : -1.0, 1.0),
-                            child: Text(animal.emoji, style: const TextStyle(fontSize: 36)),
-                          ),
-                        ),
-                      // Placed items (Build Mode)
-                      for (final placed in placedItems)
-                        Positioned(
-                          left: placed.gridX * cellSize,
-                          top: placed.gridY * cellSize,
-                          child: GestureDetector(
-                            onTap: buildMode ? () => _packUpItem(placed) : null,
-                            child: SizedBox(
-                              width: cellSize,
-                              height: cellSize,
-                              child: _wordFor(placed.itemId) != null
-                                  ? Image.asset(_wordFor(placed.itemId)!.imageAsset, fit: BoxFit.contain)
-                                  : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: _confirmExit,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: const Icon(Icons.map_rounded, color: Color(0xFF333333)),
-                    ),
-                  ),
-                  const Spacer(),
-                  JellyButton(
-                    color: const Color(0xFFFFAB40),
-                    onTap: () {
-                      // Streamlined: one tap both enters Build Mode AND
-                      // opens the inventory — no separate "tap edit, then
-                      // tap +" two-step anymore.
-                      setState(() => buildMode = true);
-                      _openInventoryModal();
-                    },
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.construction_rounded, color: Colors.white, size: 18),
-                        SizedBox(width: 6),
-                        Text('Build / Inventory'),
-                      ],
-                    ),
-                  ),
-                  if (buildMode) ...[
-                    const SizedBox(width: 8),
-                    JellyButton(
-                      color: const Color(0xFF888888),
-                      onTap: () => setState(() {
-                        buildMode = false;
-                        selectedItemId = null;
-                      }),
-                      padding: const EdgeInsets.all(10),
-                      child: const Icon(Icons.check_rounded, size: 18),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          // Floating "held" item — drag this onto the map to place it.
-          // Stays selected after each drop (continuous placement).
-          if (buildMode && selectedItemId != null)
-            Positioned(
-              bottom: 24,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Draggable<String>(
-                  data: selectedItemId!,
-                  feedback: Material(
-                    color: Colors.transparent,
-                    child: _HeldItemChip(word: _wordFor(selectedItemId!), label: selectedItemId!),
-                  ),
-                  childWhenDragging: Opacity(
-                    opacity: 0.4,
-                    child: _HeldItemChip(word: _wordFor(selectedItemId!), label: selectedItemId!),
-                  ),
-                  child: GestureDetector(
-                    onLongPress: () => setState(() => selectedItemId = null), // long-press to cancel
-                    child: _HeldItemChip(word: _wordFor(selectedItemId!), label: selectedItemId!, showHint: true),
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
-        ],
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _confirmExit,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: const Icon(Icons.map_rounded, color: Color(0xFF333333)),
+                      ),
+                    ),
+                    const Spacer(),
+                    JellyButton(
+                      color: const Color(0xFFFFAB40),
+                      onTap: () {
+                        // Streamlined: one tap both enters Build Mode AND
+                        // opens the inventory — no separate "tap edit, then
+                        // tap +" two-step anymore.
+                        setState(() => buildMode = true);
+                        _openInventoryModal();
+                      },
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.construction_rounded, color: Colors.white, size: 18),
+                          SizedBox(width: 6),
+                          Text('Build / Inventory'),
+                        ],
+                      ),
+                    ),
+                    if (buildMode) ...[
+                      const SizedBox(width: 8),
+                      JellyButton(
+                        color: const Color(0xFF888888),
+                        onTap: () => setState(() {
+                          buildMode = false;
+                          selectedItemId = null;
+                        }),
+                        padding: const EdgeInsets.all(10),
+                        child: const Icon(Icons.check_rounded, size: 18),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            // Floating "held" item — drag this onto the map to place it.
+            // Stays selected after each drop (continuous placement).
+            if (buildMode && selectedItemId != null)
+              Positioned(
+                bottom: 24,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Draggable<String>(
+                    data: selectedItemId!,
+                    feedback: Material(
+                      color: Colors.transparent,
+                      child: _HeldItemChip(word: _wordFor(selectedItemId!), label: selectedItemId!),
+                    ),
+                    childWhenDragging: Opacity(
+                      opacity: 0.4,
+                      child: _HeldItemChip(word: _wordFor(selectedItemId!), label: selectedItemId!),
+                    ),
+                    child: GestureDetector(
+                      onLongPress: () => setState(() => selectedItemId = null), // long-press to cancel
+                      child: _HeldItemChip(word: _wordFor(selectedItemId!), label: selectedItemId!, showHint: true),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
-    );
+    );;
   }
 }
 
