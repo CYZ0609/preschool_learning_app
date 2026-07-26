@@ -11,20 +11,22 @@ List<LessonWord> defaultMapWordsFor(String ageGroup) {
   int difficulty;
   switch (ageGroup) {
     case '4-5':
-      // 3-4 letters only — Listen + Read steps only at this tier.
-      words = ['cat', 'dog', 'cow', 'pig', 'fish', 'bird'];
+      // 3-4 letters — the most common, everyday animals and objects a
+      // 4-5 year old already recognizes by sight. Listen + Read only.
+      words = ['cat', 'dog', 'cow', 'pig', 'fish', 'bird', 'sun', 'hat', 'ant'];
       difficulty = 1;
       break;
     case '5-6':
-      // 4-6 letters — moderate tier, guided reading + tracing + tolerant speech.
-      words = ['tiger', 'rabbit', 'monkey', 'frog', 'zebra', 'fox'];
+      // 4-6 letters — still very common/concrete (animals, fruit, simple
+      // household objects), nothing abstract. Guided reading + tracing.
+      words = ['tiger', 'rabbit', 'monkey', 'frog', 'zebra', 'fox', 'lion', 'apple', 'chair', 'table', 'water', 'mango'];
       difficulty = 2;
       break;
     case '6-7':
     default:
-      // 6-8 letters — hardest tier (unguided reading, strict speech match),
-      // but nothing longer than 8 letters to keep it achievable, not frustrating.
-      words = ['elephant', 'giraffe', 'kangaroo', 'parrot', 'donkey', 'lizard'];
+      // 6-8 letters — longer but still everyday, concrete words (no
+      // abstract adjectives or obscure occupations/places).
+      words = ['elephant', 'giraffe', 'kangaroo', 'parrot', 'donkey', 'lizard', 'dinosaur', 'umbrella', 'teacher', 'pencil'];
       difficulty = 3;
   }
   // Only keep ones that actually have a bundled asset image.

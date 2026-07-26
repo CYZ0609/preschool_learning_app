@@ -1,5 +1,3 @@
-import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../services/lesson_service.dart';
 import '../../../services/build_mode_service.dart';
@@ -26,13 +24,6 @@ class BiomeSandboxScreen extends StatefulWidget {
   State<BiomeSandboxScreen> createState() => _BiomeSandboxScreenState();
 }
 
-class _RoamingAnimal {
-  double gridX, gridY;
-  bool facingRight = true;
-  final String emoji;
-  _RoamingAnimal({required this.gridX, required this.gridY, required this.emoji});
-}
-
 class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   static const int gridCols = 20;
   static const int gridRows = 20;
@@ -42,9 +33,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   static const int trunkY = 2;
   static const int trunkSize = 3;
 
-  late List<_RoamingAnimal> animals;
-  Timer? _roamTimer;
-  final Random rand = Random();
   final TransformationController _viewController = TransformationController();
 
   bool buildMode = false;
@@ -75,14 +63,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   @override
   void initState() {
     super.initState();
-    animals = List.generate(3, (i) {
-      return _RoamingAnimal(
-        gridX: (5 + i * 4).toDouble(),
-        gridY: (gridRows - 4).toDouble(),
-        emoji: ['🐔', '🐑', '🐰'][i % 3],
-      );
-    });
-    _roamTimer = Timer.periodic(const Duration(seconds: 2, milliseconds: 500), (_) => _stepAnimals());
     _loadBuildMode();
     // Initial camera lock now happens in build()'s LayoutBuilder, not here —
     // setting it in a post-frame callback left InteractiveViewer's internal
@@ -145,40 +125,12 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
 
   @override
   void dispose() {
-    _roamTimer?.cancel();
     _viewController.dispose();
     super.dispose();
   }
 
   bool _isTrunkCell(int x, int y) =>
       x >= trunkX && x < trunkX + trunkSize && y >= trunkY && y < trunkY + trunkSize;
-
-  bool _isBlocked(int x, int y) {
-    if (x < 0 || x >= gridCols || y < 0 || y >= gridRows) return true;
-    return _isTrunkCell(x, y);
-  }
-
-  void _stepAnimals() {
-    setState(() {
-      for (final animal in animals) {
-        final dir = rand.nextInt(4);
-        int dx = 0, dy = 0;
-        switch (dir) {
-          case 0: dx = 1; break;
-          case 1: dx = -1; break;
-          case 2: dy = 1; break;
-          case 3: dy = -1; break;
-        }
-        final targetX = animal.gridX.round() + dx;
-        final targetY = animal.gridY.round() + dy;
-        if (!_isBlocked(targetX, targetY)) {
-          animal.gridX = targetX.toDouble();
-          animal.gridY = targetY.toDouble();
-          if (dx != 0) animal.facingRight = dx > 0;
-        }
-      }
-    });
-  }
 
   void _openInventoryModal() {
     showDialog(
@@ -312,23 +264,27 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                       width: trunkSize * cellSize,
                                       height: trunkSize * cellSize,
                                       alignment: Alignment.center,
-                                      child: const Text('🎁', style: TextStyle(fontSize: 56)),
+                                      // Chest art: tries a biome-specific image first
+                                      // (e.g. assets/images/chest_desert.png), falls
+                                      // back to a generic chest image if that one
+                                      // isn't there yet, and finally falls back to
+                                      // the emoji if no chest art has been added at
+                                      // all — so this never breaks while you're
+                                      // still generating/adding the AI images.
+                                      child: Image.asset(
+                                        'assets/images/chest_${widget.biome.name}.png',
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (_, __, ___) => Image.asset(
+                                          'assets/images/chest.png',
+                                          fit: BoxFit.contain,
+                                          errorBuilder: (_, __, ___) =>
+                                              const Text('🎁', style: TextStyle(fontSize: 56)),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                              for (final animal in animals)
-                                AnimatedPositioned(
-                                  duration: const Duration(milliseconds: 900),
-                                  curve: Curves.easeInOut,
-                                  left: animal.gridX * cellSize,
-                                  top: animal.gridY * cellSize,
-                                  child: Transform(
-                                    alignment: Alignment.center,
-                                    transform: Matrix4.identity()..scale(animal.facingRight ? 1.0 : -1.0, 1.0),
-                                    child: Text(animal.emoji, style: const TextStyle(fontSize: 36)),
-                                  ),
-                                ),
                               for (final placed in placedItems)
                                 Positioned(
                                   left: placed.gridX * cellSize,
