@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/asset_images.dart';
 import '../../services/lesson_service.dart';
+import '../../widgets/word_image.dart';
 
 class CreateLessonScreen extends StatefulWidget {
   const CreateLessonScreen({super.key});
@@ -354,7 +355,7 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
                         SizedBox(
                           width: 28,
                           height: 28,
-                          child: Image.asset(w.imageAsset, fit: BoxFit.contain),
+                          child: WordImage(imageAsset: w.imageAsset),
                         ),
                         const SizedBox(width: 6),
                         Text(w.word, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A8C7A))),

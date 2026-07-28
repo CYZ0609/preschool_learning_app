@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../services/lesson_service.dart';
 import '../../../services/unlock_service.dart';
+import '../../../widgets/word_image.dart';
 
 enum _FinaleStage { locked, cracking, shattering, colorAwaken, flyToBackpack, done }
 
@@ -125,7 +126,7 @@ class _UnlockFinaleScreenState extends State<UnlockFinaleScreen> with TickerProv
                             height: 220,
                             padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(28)),
-                            child: Image.asset(widget.word.imageAsset, fit: BoxFit.contain),
+                            child: WordImage(imageAsset: widget.word.imageAsset),
                           ),
                         ),
                         if (stage == _FinaleStage.locked || stage == _FinaleStage.cracking)

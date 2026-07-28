@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../../services/lesson_service.dart';
+import '../../widgets/word_image.dart';
 
 /// Simple flashcard teach screen used for Speaking/Writing/Arithmetic
 /// lesson assignments. (Reading and Listening lessons go through the
@@ -98,8 +99,10 @@ class _TeachScreenState extends State<TeachScreen> {
                             color: const Color(0xFFE0FDF4),
                             borderRadius: BorderRadius.circular(28),
                           ),
-                          child: Image.asset(word.imageAsset, fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, color: Colors.grey, size: 60)),
+                          child: WordImage(
+                            imageAsset: word.imageAsset,
+                            errorWidget: const Icon(Icons.broken_image_rounded, color: Colors.grey, size: 60),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 28),

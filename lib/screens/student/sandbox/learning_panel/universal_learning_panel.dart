@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../services/lesson_service.dart';
+import '../../../../widgets/word_image.dart';
 import 'listening_step.dart';
 import 'reading_step.dart';
 import 'writing_step.dart';
@@ -8,12 +9,19 @@ import 'speaking_step.dart';
 enum LearningStep { listening, reading, writing, speaking }
 
 List<LearningStep> _stepsFor(String ageGroup) {
-  if (ageGroup == '4-5') {
-    // "Only 2 steps. Speaking and Writing are skipped entirely to prevent
-    // toddler frustration."
-    return [LearningStep.listening, LearningStep.reading];
+  switch (ageGroup) {
+    case '4-5':
+      // 2 exercise types — basic word recognition only, no
+      // production (writing/speaking) required at this age.
+      return [LearningStep.listening, LearningStep.reading];
+    case '5-6':
+      // 3 exercise types — adds Writing (tracing) on top of the 4-5 set.
+      return [LearningStep.listening, LearningStep.reading, LearningStep.writing];
+    case '6-7':
+    default:
+      // All 4 exercise types, including Speaking.
+      return [LearningStep.listening, LearningStep.reading, LearningStep.writing, LearningStep.speaking];
   }
-  return [LearningStep.listening, LearningStep.reading, LearningStep.writing, LearningStep.speaking];
 }
 
 /// Section 5: the Universal Learning Panel. Shown full-screen when a
@@ -94,7 +102,7 @@ class _UniversalLearningPanelState extends State<UniversalLearningPanel> {
                   const Spacer(),
                   SizedBox(
                     width: 44, height: 44,
-                    child: Image.asset(widget.word.imageAsset, fit: BoxFit.contain),
+                    child: WordImage(imageAsset: widget.word.imageAsset),
                   ),
                   const Spacer(),
                   const SizedBox(width: 24),

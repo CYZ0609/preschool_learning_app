@@ -667,6 +667,7 @@ class _InventoryModalState extends State<_InventoryModal> {
                     crossAxisCount: 3,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
+                    mainAxisExtent: 112, // 80px image + spacing + label, was defaulting to a square cell and clipping the label by ~12px
                   ),
                   itemCount: pageItems.length,
                   itemBuilder: (context, i) {
