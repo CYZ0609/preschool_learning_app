@@ -10,6 +10,14 @@ class LessonWord {
   final double? positionX; // 0.0-1.0 fractional X on the map; null = auto-layout
   final double? positionY; // 0.0-1.0 fractional Y on the map; null = auto-layout
 
+  // --- Dynamic physics/behavior config ---
+  // These replace any hardcoded "these 3 words are obstacles" list. Any
+  // word — built-in or teacher-added from the backend — carries its own
+  // behavior, so pathfinding never needs to know specific word names.
+  final bool isMovable;  // true = wanders the grid on its own once placed
+  final bool isPassable; // true = other movers can walk straight through it;
+                          // false = solid obstacle that blocks movement
+
   LessonWord({
     required this.word,
     required this.imageAsset,
@@ -17,6 +25,8 @@ class LessonWord {
     this.difficulty = 1,
     this.positionX,
     this.positionY,
+    this.isMovable = false,
+    this.isPassable = true,
   });
 
   Map<String, dynamic> toMap() => {
@@ -26,6 +36,8 @@ class LessonWord {
         'difficulty': difficulty,
         'positionX': positionX,
         'positionY': positionY,
+        'isMovable': isMovable,
+        'isPassable': isPassable,
       };
 
   factory LessonWord.fromMap(Map<String, dynamic> map) => LessonWord(
@@ -35,6 +47,13 @@ class LessonWord {
         difficulty: (map['difficulty'] as num?)?.toInt() ?? 1,
         positionX: (map['positionX'] as num?)?.toDouble(),
         positionY: (map['positionY'] as num?)?.toDouble(),
+        // Defaults matter here for backward compatibility: any word saved
+        // by teachers BEFORE this field existed reads back as isMovable:
+        // false, isPassable: true — i.e. a normal, harmless, non-blocking
+        // decorative item. Nothing already in the database silently
+        // becomes an obstacle.
+        isMovable: map['isMovable'] as bool? ?? false,
+        isPassable: map['isPassable'] as bool? ?? true,
       );
 }
 
