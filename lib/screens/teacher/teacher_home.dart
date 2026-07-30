@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../home_screen.dart';
-import 'assign_homework_screen.dart';
-import 'my_lessons_screen.dart';
+import 'add_item_screen.dart'; // 接下来我们要写的新文件
 
 class TeacherHome extends StatelessWidget {
   const TeacherHome({super.key});
@@ -32,51 +31,22 @@ class TeacherHome extends StatelessWidget {
                   const SizedBox(height: 24),
                   const Text('Teacher Dashboard', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
                   const SizedBox(height: 8),
-                  const Text('Manage your class', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
+                  const Text('Manage Sandbox Items', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
                   const SizedBox(height: 28),
                   
-                  // 功能卡片 0 - My Lessons (new: teach words before quiz)
+                  // 唯一的管理卡片：添加沙盒物品
                   _menuCard(
-                    icon: Icons.school_rounded,
-                    label: 'My Lessons',
-                    subtitle: 'Create & manage lessons to teach words',
-                    color: const Color(0xFF80DEEA),
+                    icon: Icons.add_photo_alternate_rounded,
+                    label: 'Add New Item',
+                    subtitle: 'Upload images, set sizes & collisions',
+                    color: const Color(0xFF4DD9C0),
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const MyLessonsScreen()),
+                      MaterialPageRoute(builder: (_) => const AddItemScreen()),
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  // 功能卡片 1
-                  _menuCard(
-                    icon: Icons.bar_chart_rounded, 
-                    label: 'Class Performance', 
-                    subtitle: 'View all students\' progress', 
-                    color: const Color(0xFFFFAB40)
-                  ),
-                  const SizedBox(height: 12),
                   
-                  // 功能卡片 2
-                  _menuCard(
-                    icon: Icons.group_rounded, 
-                    label: 'Manage Students', 
-                    subtitle: 'View and manage student list', 
-                    color: const Color(0xFF4DD9C0)
-                  ),
-                  
-                  const SizedBox(height: 24),
-                  // 功能卡片 3
-                  _menuCard(
-  icon: Icons.assignment_rounded,
-  label: 'Assign Homework',
-  subtitle: 'Set tasks for students',
-  color: const Color(0xFFFF8FAB),
-  onTap: () => Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const AssignHomeworkScreen()),
-  ),
-),
+                  const Spacer(),
                   
                   // 登出按钮
                   SizedBox(
@@ -141,18 +111,11 @@ class TeacherHome extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: color
-                  )
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)
                 ),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    fontSize: 12, 
-                    color: Color(0xFF888888)
-                  )
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF888888))
                 ),
               ],
             ),

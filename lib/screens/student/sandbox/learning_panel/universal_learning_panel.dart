@@ -65,13 +65,13 @@ class _UniversalLearningPanelState extends State<UniversalLearningPanel> {
   Widget _buildCurrentStep() {
     switch (steps[currentIndex]) {
       case LearningStep.listening:
-        return ListeningStep(key: ValueKey(currentIndex), word: widget.word.word, onComplete: _advance);
+        return ListeningStep(key: ValueKey(currentIndex), word: widget.word.word, imageAsset: widget.word.imageAsset, onComplete: _advance);
       case LearningStep.reading:
-        return ReadingStep(key: ValueKey(currentIndex), word: widget.word.word, ageGroup: widget.ageGroup, onComplete: _advance);
+        return ReadingStep(key: ValueKey(currentIndex), word: widget.word.word, imageAsset: widget.word.imageAsset, ageGroup: widget.ageGroup, onComplete: _advance);
       case LearningStep.writing:
         return WritingStep(key: ValueKey(currentIndex), word: widget.word.word, ageGroup: widget.ageGroup, onComplete: _advance);
       case LearningStep.speaking:
-        return SpeakingStep(key: ValueKey(currentIndex), word: widget.word.word, ageGroup: widget.ageGroup, onComplete: _advance);
+        return SpeakingStep(key: ValueKey(currentIndex), word: widget.word.word, imageAsset: widget.word.imageAsset, ageGroup: widget.ageGroup, onComplete: _advance);
     }
   }
 
@@ -96,9 +96,9 @@ class _UniversalLearningPanelState extends State<UniversalLearningPanel> {
               Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.close_rounded, color: Color(0xFF888888)),
-                  ),
+  onTap: () => Navigator.pop(context, false),
+  child: const Icon(Icons.close_rounded, color: Color(0xFF888888)),
+),
                   const Spacer(),
                   SizedBox(
                     width: 44, height: 44,

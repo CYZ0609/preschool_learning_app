@@ -229,30 +229,36 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                   biome: biome,
                   lesson: lesson,
                   kidId: widget.kidId,
-                  onOpenWord: (word) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => UniversalLearningPanel(
-                          word: word,
-                          ageGroup: widget.ageGroup,
-                          onFinished: () {
-                            Navigator.pop(context); // close panel
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => UnlockFinaleScreen(
-                                  word: word,
-                                  kidId: widget.kidId,
-                                  onDone: () => Navigator.pop(context), // close finale, back to sandbox
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    );
-                  },
+                  onOpenWord: (word) async {
+  // Wait for the panel to close. It pops with `true` only
+  // when the child genuinely finishes the last step
+  // (onFinished); tapping the ✕ pops with `false`.
+  final finished = await Navigator.push<bool>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => UniversalLearningPanel(
+        word: word,
+        ageGroup: widget.ageGroup,
+        onFinished: () => Navigator.pop(context, true), // close panel
+      ),
+    ),
+  );
+  if (finished != true) return; // quit early via ✕ — no unlock, no finale
+  // Then wait for the finale to close too. Only once BOTH
+  // are done do we return control to BiomeSandboxScreen,
+  // which reloads unlockedWords so the newly-unlocked
+  // word can actually be dragged onto the grid.
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => UnlockFinaleScreen(
+        word: word,
+        kidId: widget.kidId,
+        onDone: () => Navigator.pop(context), // close finale, back to sandbox
+      ),
+    ),
+  );
+},
                 ),
               ),
             );

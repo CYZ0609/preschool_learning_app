@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../../../widgets/word_image.dart';
 
 /// Step 4 (5-6, 6-7 only): the child taps the mic and speaks. Their words
 /// are echoed live into a text bubble as they're recognized.
@@ -10,10 +11,11 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 /// - 6-7 (Strict): exact match required (case-insensitive), no fallback.
 class SpeakingStep extends StatefulWidget {
   final String word;
+  final String imageAsset;
   final String ageGroup;
   final VoidCallback onComplete;
 
-  const SpeakingStep({super.key, required this.word, required this.ageGroup, required this.onComplete});
+  const SpeakingStep({super.key, required this.word, required this.imageAsset, required this.ageGroup, required this.onComplete});
 
   @override
   State<SpeakingStep> createState() => _SpeakingStepState();
@@ -106,6 +108,12 @@ class _SpeakingStepState extends State<SpeakingStep> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        SizedBox(
+          width: 100,
+          height: 100,
+          child: WordImage(imageAsset: widget.imageAsset),
+        ),
+        const SizedBox(height: 16),
         Text('Say "${widget.word}"', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
         const SizedBox(height: 20),
         Container(

@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import '../../../../widgets/word_image.dart';
 
 /// Step 2: the word appears as empty letter slots. The child taps letter
 /// tiles (scrambled, with distractors) to fill them in order.
@@ -11,10 +12,11 @@ import 'package:flutter_tts/flutter_tts.dart';
 ///   construct the word entirely from memory.
 class ReadingStep extends StatefulWidget {
   final String word;
+  final String imageAsset;
   final String ageGroup;
   final VoidCallback onComplete;
 
-  const ReadingStep({super.key, required this.word, required this.ageGroup, required this.onComplete});
+  const ReadingStep({super.key, required this.word, required this.imageAsset, required this.ageGroup, required this.onComplete});
 
   @override
   State<ReadingStep> createState() => _ReadingStepState();
@@ -83,6 +85,12 @@ class _ReadingStepState extends State<ReadingStep> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        SizedBox(
+          width: 100,
+          height: 100,
+          child: WordImage(imageAsset: widget.imageAsset),
+        ),
+        const SizedBox(height: 20),
         Wrap(
           spacing: 8,
           alignment: WrapAlignment.center,

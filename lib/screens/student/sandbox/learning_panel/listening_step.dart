@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import '../../../../widgets/word_image.dart';
 
 /// Step 1 (all ages): a massive jelly-like button. Tapping it speaks the
 /// word twice with a pause between. Only after the second playback
 /// finishes does the Next arrow appear — no way to skip ahead by luck.
 class ListeningStep extends StatefulWidget {
   final String word;
+  final String imageAsset;
   final VoidCallback onComplete;
 
-  const ListeningStep({super.key, required this.word, required this.onComplete});
+  const ListeningStep({super.key, required this.word, required this.imageAsset, required this.onComplete});
 
   @override
   State<ListeningStep> createState() => _ListeningStepState();
@@ -50,6 +52,12 @@ class _ListeningStepState extends State<ListeningStep> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        SizedBox(
+          width: 120,
+          height: 120,
+          child: WordImage(imageAsset: widget.imageAsset),
+        ),
+        const SizedBox(height: 20),
         GestureDetector(
           onTapDown: (_) => setState(() => pressed = true),
           onTapUp: (_) => setState(() => pressed = false),

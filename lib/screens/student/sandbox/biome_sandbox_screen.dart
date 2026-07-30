@@ -25,7 +25,7 @@ class BiomeSandboxScreen extends StatefulWidget {
   final Biome biome;
   final Lesson lesson;
   final String kidId;
-  final void Function(LessonWord word) onOpenWord;
+  final Future<void> Function(LessonWord word) onOpenWord;
 
   const BiomeSandboxScreen({
     super.key,
@@ -40,10 +40,12 @@ class BiomeSandboxScreen extends StatefulWidget {
 }
 
 class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
-  static const int gridCols = 20;
-  static const int gridRows = 20;
+  // ✨ 这里把地图放大了！改成了 40 x 40 的网格 ✨
+  static const int gridCols = 40;
+  static const int gridRows = 40;
   static const double cellSize = 48;
 
+  // 箱子依然会自动居中，因为它是动态计算的
   static const int trunkX = (gridCols ~/ 2) - 1;
   static const int trunkY = 2;
   static const int trunkSize = 3;
@@ -60,6 +62,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   List<PlacedItem> placedItems = [];
   String? selectedItemId;
   final GlobalKey _gridKey = GlobalKey();
+
+  // 用于记录拖拽虚影坐标的变量
+  int? _hoverX;
+  int? _hoverY;
 
   // One runtime roaming entity per currently-placed item whose word has
   // isMovable == true. Keyed by PlacedItem object identity so it survives
@@ -123,6 +129,13 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
     }
   }
 
+  // --- Dynamic Grid Span ---
+  // 决定物品占用几个格子（返回 2 代表 2x2=4格，默认返回 1 代表 1x1=1格）
+  int _getItemGridSpan(String itemId) {
+    if (itemId == 'TREE') return 2; 
+    return 1;
+  }
+
   // --- Dynamic pathfinding (requirement #1 + #5) ---
   // Every candidate cell's "can I walk here" answer comes from whatever
   // LessonWord.isPassable says for whatever's placed there — never a
@@ -137,7 +150,13 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
     for (final p in placedItems) {
       final word = _wordFor(p.itemId);
       if (word != null && !word.isPassable) {
-        obstacles.add('${p.gridX.round()},${p.gridY.round()}');
+        final span = _getItemGridSpan(p.itemId);
+        // 根据物体的格数，把它覆盖的所有格子加入障碍物列表
+        for (int dx = 0; dx < span; dx++) {
+          for (int dy = 0; dy < span; dy++) {
+            obstacles.add('${p.gridX.round() + dx},${p.gridY.round() + dy}');
+          }
+        }
       }
     }
     return obstacles;
@@ -191,6 +210,8 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   }
 
   Future<void> _placeItemAt(String itemId, int gridX, int gridY) async {
+    debugPrint('[BiomeSandbox] _placeItemAt called: $itemId at ($gridX, $gridY)');
+    
     final clampedX = gridX.clamp(0, gridCols - 1);
     final clampedY = gridY.clamp(0, gridRows - 1);
     if (_isTrunkCell(clampedX, clampedY)) return;
@@ -243,12 +264,20 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
       builder: (context) => _InventoryModal(
         catalog: catalog,
         unlockedWords: unlockedWords,
-        onTapLocked: (word) {
+        onTapLocked: (word) async {
           Navigator.pop(context);
-          widget.onOpenWord(word);
+          await widget.onOpenWord(word);
+          // The practice + unlock-finale flow is fully done now (the
+          // unlock was already written to Firestore in UnlockFinaleScreen).
+          // Reload so the newly-unlocked word actually shows as
+          // placeable — this screen's unlockedWords was only ever loaded
+          // once, in initState, so without this refresh it stayed stale.
+          if (mounted) await _loadBuildMode();
         },
         onTapUnlocked: (word) {
+          debugPrint('[BiomeSandbox] onTapUnlocked: ${word.word}');
           Navigator.pop(context);
+          debugPrint('[BiomeSandbox] dialog popped, setting selectedItemId');
           setState(() => selectedItemId = word.word);
         },
       ),
@@ -300,7 +329,41 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                     constrained: false,
                     child: DragTarget<String>(
                       onWillAcceptWithDetails: (_) => true,
+                      
+                      // 监听拖拽移动，更新虚影坐标
+                      onMove: (details) {
+                        final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
+                        if (renderBox == null) return;
+                        final local = renderBox.globalToLocal(details.offset);
+                        final gridX = (local.dx / cellSize).floor();
+                        final gridY = (local.dy / cellSize).floor();
+                        
+                        // 避免不必要的 setState
+                        if (_hoverX != gridX || _hoverY != gridY) {
+                          setState(() {
+                            _hoverX = gridX;
+                            _hoverY = gridY;
+                          });
+                        }
+                      },
+                      
+                      // 监听手指离开屏幕/移出区域，取消虚影
+                      onLeave: (_) {
+                        setState(() {
+                          _hoverX = null;
+                          _hoverY = null;
+                        });
+                      },
+                      
                       onAcceptWithDetails: (details) {
+                        debugPrint('[BiomeSandbox] DragTarget accepted: ${details.data}');
+                        
+                        // 成功放下后，清除虚影
+                        setState(() {
+                          _hoverX = null;
+                          _hoverY = null;
+                        });
+
                         final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
                         if (renderBox == null) return;
                         final local = renderBox.globalToLocal(details.offset);
@@ -405,8 +468,8 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                       alignment: Alignment.center,
                                       transform: Matrix4.identity()..scale(entry.value.facingRight ? 1.0 : -1.0, 1.0),
                                       child: SizedBox(
-                                        width: cellSize,
-                                        height: cellSize,
+                                        width: cellSize * _getItemGridSpan(entry.key.itemId),
+                                        height: cellSize * _getItemGridSpan(entry.key.itemId),
                                         child: _wordFor(entry.key.itemId) != null
                                             ? WordImage(imageAsset: _wordFor(entry.key.itemId)!.imageAsset)
                                             : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
@@ -423,14 +486,38 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                     child: GestureDetector(
                                       onTap: buildMode ? () => _packUpItem(placed) : null,
                                       child: SizedBox(
-                                        width: cellSize,
-                                        height: cellSize,
+                                        width: cellSize * _getItemGridSpan(placed.itemId),
+                                        height: cellSize * _getItemGridSpan(placed.itemId),
                                         child: _wordFor(placed.itemId) != null
                                             ? WordImage(imageAsset: _wordFor(placed.itemId)!.imageAsset)
                                             : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
                                       ),
                                     ),
                                   ),
+                                  
+                              // 虚影 (Ghost Preview) 显示层
+                              if (buildMode && _hoverX != null && _hoverY != null && selectedItemId != null)
+                                Positioned(
+                                  left: _hoverX!.clamp(0, gridCols - 1) * cellSize,
+                                  top: _hoverY!.clamp(0, gridRows - 1) * cellSize,
+                                  child: Opacity(
+                                    opacity: 0.5, // 设为 50% 透明度
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        // 如果悬停位置在箱子上，显示红色以警告不可放置
+                                        color: _isTrunkCell(_hoverX!.clamp(0, gridCols - 1), _hoverY!.clamp(0, gridRows - 1))
+                                            ? Colors.red.withOpacity(0.4) 
+                                            : Colors.white.withOpacity(0.2), 
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      width: cellSize * _getItemGridSpan(selectedItemId!),
+                                      height: cellSize * _getItemGridSpan(selectedItemId!),
+                                      child: _wordFor(selectedItemId!) != null
+                                          ? WordImage(imageAsset: _wordFor(selectedItemId!)!.imageAsset)
+                                          : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         );
@@ -676,7 +763,6 @@ class _InventoryModalState extends State<_InventoryModal> {
                     return GestureDetector(
                       onTap: () {
                         if (isUnlocked) {
-                          Navigator.pop(context);
                           widget.onTapUnlocked(word);
                         } else {
                           // Real flow: this pops the Inventory and calls
