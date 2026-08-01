@@ -5,6 +5,7 @@ import '../../../services/lesson_service.dart';
 import '../../../services/build_mode_service.dart';
 import '../../../services/unlock_service.dart';
 import '../../../services/vocab_seen_service.dart';
+import '../../../services/sandbox_item_service.dart';
 import '../../../data/default_map_words.dart';
 import '../../../widgets/jelly_button.dart';
 import '../../../widgets/word_image.dart';
@@ -40,15 +41,10 @@ class BiomeSandboxScreen extends StatefulWidget {
 }
 
 class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
-  // ✨ 这里把地图放大了！改成了 40 x 40 的网格 ✨
+ 
   static const int gridCols = 40;
   static const int gridRows = 40;
-  static const double cellSize = 48;
-
-  // 箱子依然会自动居中，因为它是动态计算的
-  static const int trunkX = (gridCols ~/ 2) - 1;
-  static const int trunkY = 2;
-  static const int trunkSize = 3;
+  static const double cellSize = 96;
 
   final Random rand = Random();
   Timer? _roamTimer;
@@ -57,9 +53,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   bool buildMode = false;
   bool bgFailed = false;
   bool _initialTransformSet = false; // guards the LayoutBuilder one-time camera lock
-  bool _hasNewContent = false;       // drives the yellow "!" badge on the Trunk
+  bool _hasNewContent = false;       
   List<String> unlockedWords = [];
   List<PlacedItem> placedItems = [];
+  List<LessonWord> _globalItems = [];
   String? selectedItemId;
   final GlobalKey _gridKey = GlobalKey();
 
@@ -67,10 +64,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   int? _hoverX;
   int? _hoverY;
 
-  // One runtime roaming entity per currently-placed item whose word has
-  // isMovable == true. Keyed by PlacedItem object identity so it survives
-  // placedItems being replaced/reloaded without losing sync — see
-  // _syncMovableRuntimes().
   final Map<PlacedItem, _RoamingEntity> _movableRuntimes = {};
 
   double _minScaleFor(Size viewport) {
@@ -79,35 +72,42 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
     return fitX > fitY ? fitX : fitY;
   }
 
-  // The ONE place built-in tiers + teacher custom vocabulary get merged —
-  // see mergeCustomVocabulary's doc comment for why this matters for
-  // backend integration (requirement #4).
   List<LessonWord> _globalCatalog() {
     final builtIn = <LessonWord>[
       ...defaultMapWordsFor('4-5'),
       ...defaultMapWordsFor('5-6'),
       ...defaultMapWordsFor('6-7'),
     ];
-    return mergeCustomVocabulary(builtIn: builtIn, custom: widget.lesson.words);
+    final withGlobals = mergeCustomVocabulary(builtIn: builtIn, custom: _globalItems);
+    return mergeCustomVocabulary(builtIn: withGlobals, custom: widget.lesson.words);
   }
 
   @override
   void initState() {
     super.initState();
     _roamTimer = Timer.periodic(const Duration(seconds: 2, milliseconds: 500), (_) => _stepEntities());
+    _loadGlobalItems();
     _loadBuildMode();
     _checkNewContent();
+  }
+
+  Future<void> _loadGlobalItems() async {
+    try {
+      final items = await SandboxItemService.loadGlobalItems();
+      if (!mounted) return;
+      setState(() => _globalItems = items);
+      _syncMovableRuntimes();
+    } catch (e) {
+      debugPrint('[BiomeSandbox] Failed to load global sandbox items: $e');
+    }
   }
 
   Future<void> _loadBuildMode() async {
     final unlocked = await UnlockService.loadUnlockedWords(widget.kidId);
     final saved = await BuildModeService.loadPlacements(widget.kidId, widget.biome.name);
-    // Age-based auto-unlock (requirement #3): every word from an EASIER
-    // tier than this kid's own is unlocked for free, no practice needed.
-    final autoUnlocked = autoUnlockedWordsFor(widget.lesson.ageGroup);
     if (!mounted) return;
     setState(() {
-      unlockedWords = {...unlocked, ...autoUnlocked}.toList();
+      unlockedWords = unlocked;
       placedItems = saved;
     });
     _syncMovableRuntimes();
@@ -130,20 +130,12 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   }
 
   // --- Dynamic Grid Span ---
-  // 决定物品占用几个格子（返回 2 代表 2x2=4格，默认返回 1 代表 1x1=1格）
+  // 树设为 3x3，其他所有物品默认设为 2x2（整体增大一格）
   int _getItemGridSpan(String itemId) {
-    if (itemId == 'TREE') return 2; 
-    return 1;
+    if (itemId == 'TREE') return 7; 
+    if (itemId == 'SUN') return 9; 
+    return 3;
   }
-
-  // --- Dynamic pathfinding (requirement #1 + #5) ---
-  // Every candidate cell's "can I walk here" answer comes from whatever
-  // LessonWord.isPassable says for whatever's placed there — never a
-  // hardcoded word list. Plants (isPassable: true) let movers straight
-  // through; fences/rocks/walls (isPassable: false) block them.
-
-  bool _isTrunkCell(int x, int y) =>
-      x >= trunkX && x < trunkX + trunkSize && y >= trunkY && y < trunkY + trunkSize;
 
   Set<String> _computeObstacleCells() {
     final obstacles = <String>{};
@@ -151,7 +143,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
       final word = _wordFor(p.itemId);
       if (word != null && !word.isPassable) {
         final span = _getItemGridSpan(p.itemId);
-        // 根据物体的格数，把它覆盖的所有格子加入障碍物列表
         for (int dx = 0; dx < span; dx++) {
           for (int dy = 0; dy < span; dy++) {
             obstacles.add('${p.gridX.round() + dx},${p.gridY.round() + dy}');
@@ -164,7 +155,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
 
   bool _isBlockedFor(int x, int y, Set<String> obstacles) {
     if (x < 0 || x >= gridCols || y < 0 || y >= gridRows) return true;
-    if (_isTrunkCell(x, y)) return true; // the trunk is always solid
     return obstacles.contains('$x,$y');
   }
 
@@ -187,20 +177,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
           entity.gridY = targetY.toDouble();
           if (dx != 0) entity.facingRight = dx > 0;
         }
-        // If blocked: entity just stays put this tick and picks a fresh
-        // random direction next tick — same "bounce" behavior as before,
-        // now checked against dynamic obstacles instead of a fixed list.
       }
     });
   }
 
-  // Keeps _movableRuntimes in sync with placedItems: adds a runtime
-  // roamer (starting at its placed position) for any newly-placed item
-  // whose word is isMovable, and drops runtimes for items that were
-  // packed up. NOTE: wandered position is intentionally NOT persisted
-  // back to Firestore every tick (that would spam writes); a movable
-  // item resumes roaming from its originally-placed cell if the kid
-  // leaves and re-enters the biome. That's a deliberate simplification.
   void _syncMovableRuntimes() {
     final movableNow = placedItems.where((p) => _wordFor(p.itemId)?.isMovable == true).toSet();
     _movableRuntimes.removeWhere((p, _) => !movableNow.contains(p));
@@ -214,11 +194,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
     
     final clampedX = gridX.clamp(0, gridCols - 1);
     final clampedY = gridY.clamp(0, gridRows - 1);
-    if (_isTrunkCell(clampedX, clampedY)) return;
 
     final word = _wordFor(itemId);
     if (word == null) {
-      debugPrint('[BiomeSandbox] WARNING: no LessonWord found for itemId "$itemId" — placing anyway, but it will show as a fallback icon.');
+      debugPrint('[BiomeSandbox] WARNING: no LessonWord found for itemId "$itemId" — placing anyway.');
     }
 
     setState(() {
@@ -252,8 +231,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   }
 
   void _openInventoryModal() {
-    // Requirement #4: opening the Inventory is "seeing" the new words —
-    // mark everything currently in the catalog as seen and hide the badge.
     final catalog = _globalCatalog();
     VocabSeenService.markWordsSeen(widget.kidId, catalog.map((w) => w.word));
     setState(() => _hasNewContent = false);
@@ -267,17 +244,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
         onTapLocked: (word) async {
           Navigator.pop(context);
           await widget.onOpenWord(word);
-          // The practice + unlock-finale flow is fully done now (the
-          // unlock was already written to Firestore in UnlockFinaleScreen).
-          // Reload so the newly-unlocked word actually shows as
-          // placeable — this screen's unlockedWords was only ever loaded
-          // once, in initState, so without this refresh it stayed stale.
           if (mounted) await _loadBuildMode();
         },
         onTapUnlocked: (word) {
-          debugPrint('[BiomeSandbox] onTapUnlocked: ${word.word}');
           Navigator.pop(context);
-          debugPrint('[BiomeSandbox] dialog popped, setting selectedItemId');
           setState(() => selectedItemId = word.word);
         },
       ),
@@ -311,8 +281,9 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
             if (!_initialTransformSet && viewport.isFinite && viewport.width > 0 && viewport.height > 0) {
               _initialTransformSet = true;
               final scale = _minScaleFor(viewport);
-              final dx = (trunkX + trunkSize / 2) * cellSize - (viewport.width / 2) / scale;
-              final dy = (trunkY + trunkSize / 2) * cellSize - (viewport.height / 2) / scale;
+              // 镜头自动聚焦到地图正中心
+              final dx = (gridCols / 2) * cellSize - (viewport.width / 2) / scale;
+              final dy = (gridRows / 2) * cellSize - (viewport.height / 2) / scale;
               _viewController.value = Matrix4.identity()
                 ..scale(scale, scale, scale)
                 ..translate(-dx, -dy);
@@ -330,7 +301,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                     child: DragTarget<String>(
                       onWillAcceptWithDetails: (_) => true,
                       
-                      // 监听拖拽移动，更新虚影坐标
                       onMove: (details) {
                         final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
                         if (renderBox == null) return;
@@ -338,7 +308,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                         final gridX = (local.dx / cellSize).floor();
                         final gridY = (local.dy / cellSize).floor();
                         
-                        // 避免不必要的 setState
                         if (_hoverX != gridX || _hoverY != gridY) {
                           setState(() {
                             _hoverX = gridX;
@@ -347,7 +316,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                         }
                       },
                       
-                      // 监听手指离开屏幕/移出区域，取消虚影
                       onLeave: (_) {
                         setState(() {
                           _hoverX = null;
@@ -356,9 +324,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                       },
                       
                       onAcceptWithDetails: (details) {
-                        debugPrint('[BiomeSandbox] DragTarget accepted: ${details.data}');
-                        
-                        // 成功放下后，清除虚影
                         setState(() {
                           _hoverX = null;
                           _hoverY = null;
@@ -403,59 +368,8 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                   size: Size(gridCols * cellSize, gridRows * cellSize),
                                   painter: _GridLinesPainter(cols: gridCols, rows: gridRows, cellSize: cellSize),
                                 ),
-                              // Trunk landmark, with the yellow "new content" badge.
-                              Positioned(
-                                left: trunkX * cellSize,
-                                top: trunkY * cellSize,
-                                child: GestureDetector(
-                                  onTap: _openInventoryModal,
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      TweenAnimationBuilder<double>(
-                                        tween: Tween(begin: 0, end: 1),
-                                        duration: const Duration(seconds: 2),
-                                        curve: Curves.easeInOut,
-                                        builder: (context, value, child) => Transform.translate(
-                                          offset: Offset(0, -4 * (0.5 - (value - 0.5).abs()) * 2),
-                                          child: child,
-                                        ),
-                                        child: Container(
-                                          width: trunkSize * cellSize,
-                                          height: trunkSize * cellSize,
-                                          alignment: Alignment.center,
-                                          child: Image.asset(
-                                            'assets/images/chest_${widget.biome.name}.png',
-                                            fit: BoxFit.contain,
-                                            errorBuilder: (_, __, ___) => Image.asset(
-                                              'assets/images/chest.png',
-                                              fit: BoxFit.contain,
-                                              errorBuilder: (_, __, ___) =>
-                                                  const Text('🎁', style: TextStyle(fontSize: 56)),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      if (_hasNewContent)
-                                        Positioned(
-                                          top: -6,
-                                          right: -6,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(5),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFFFC107),
-                                              shape: BoxShape.circle,
-                                              border: Border.all(color: Colors.white, width: 2),
-                                              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
-                                            ),
-                                            child: const Icon(Icons.priority_high_rounded, color: Colors.black87, size: 16),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              // Movable placed items (e.g. a teacher-added "farmer").
+                            
+                              // Movable placed items
                               for (final entry in _movableRuntimes.entries)
                                 AnimatedPositioned(
                                   duration: const Duration(milliseconds: 900),
@@ -477,7 +391,7 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                     ),
                                   ),
                                 ),
-                              // Static (non-movable) placed items.
+                              // Static placed items
                               for (final placed in placedItems)
                                 if (_wordFor(placed.itemId)?.isMovable != true)
                                   Positioned(
@@ -501,13 +415,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                   left: _hoverX!.clamp(0, gridCols - 1) * cellSize,
                                   top: _hoverY!.clamp(0, gridRows - 1) * cellSize,
                                   child: Opacity(
-                                    opacity: 0.5, // 设为 50% 透明度
+                                    opacity: 0.5,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        // 如果悬停位置在箱子上，显示红色以警告不可放置
-                                        color: _isTrunkCell(_hoverX!.clamp(0, gridCols - 1), _hoverY!.clamp(0, gridRows - 1))
-                                            ? Colors.red.withOpacity(0.4) 
-                                            : Colors.white.withOpacity(0.2), 
+                                        color: Colors.white.withOpacity(0.2), 
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       width: cellSize * _getItemGridSpan(selectedItemId!),
@@ -754,7 +665,7 @@ class _InventoryModalState extends State<_InventoryModal> {
                     crossAxisCount: 3,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
-                    mainAxisExtent: 112, // 80px image + spacing + label, was defaulting to a square cell and clipping the label by ~12px
+                    mainAxisExtent: 112,
                   ),
                   itemCount: pageItems.length,
                   itemBuilder: (context, i) {
@@ -765,10 +676,6 @@ class _InventoryModalState extends State<_InventoryModal> {
                         if (isUnlocked) {
                           widget.onTapUnlocked(word);
                         } else {
-                          // Real flow: this pops the Inventory and calls
-                          // onOpenWord, which student_home.dart wires to
-                          // the actual UniversalLearningPanel ->
-                          // UnlockFinaleScreen practice game.
                           widget.onTapLocked(word);
                         }
                       },

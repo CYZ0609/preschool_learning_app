@@ -18,6 +18,7 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
   String selectedAgeGroup = '4-5';
   String? selectedImage; // asset name, e.g. "cat"
   bool isSaving = false;
+  bool _isMovableWord = false; // does this word wander the grid once placed?
 
   final List<LessonWord> lessonWords = [];
 
@@ -53,9 +54,11 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
       lessonWords.add(LessonWord(
         word: word.toUpperCase(),
         imageAsset: assetPathFor(selectedImage!),
+        isMovable: _isMovableWord,
       ));
       _wordController.clear();
       selectedImage = null;
+      _isMovableWord = false;
     });
   }
 
@@ -332,7 +335,33 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            // Self-moving toggle applies to the NEXT word added above —
+            // check it for animals (e.g. COW), leave unchecked for
+            // furniture/decor/objects that should stay put.
+            InkWell(
+              onTap: () => setState(() => _isMovableWord = !_isMovableWord),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      value: _isMovableWord,
+                      activeColor: const Color(0xFF4DD9C0),
+                      onChanged: (val) => setState(() => _isMovableWord = val ?? false),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'This word wanders the grid on its own once placed (for animals)',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
 
             if (lessonWords.isNotEmpty) ...[
               const Text('Words in this lesson',
@@ -359,6 +388,10 @@ class _CreateLessonScreenState extends State<CreateLessonScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(w.word, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A8C7A))),
+                        if (w.isMovable) ...[
+                          const SizedBox(width: 4),
+                          const Icon(Icons.directions_walk_rounded, size: 14, color: Color(0xFF1A8C7A)),
+                        ],
                         const SizedBox(width: 4),
                         GestureDetector(
                           onTap: () => _removeWord(i),

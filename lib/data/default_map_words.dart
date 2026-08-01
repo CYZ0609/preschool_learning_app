@@ -24,27 +24,33 @@ class _WordSpec {
 /// (isMovable: false, isPassable: true).
 const Map<String, List<_WordSpec>> _tierSpecs = {
   '4-5': [
-    _WordSpec('cat'), _WordSpec('dog'), _WordSpec('cow'), _WordSpec('pig'),
-    _WordSpec('fish'), _WordSpec('bird'), _WordSpec('sun'), _WordSpec('hat'),
-    _WordSpec('ant'),
+    // Animals wander the grid on their own once placed (isMovable: true).
+    _WordSpec('cat', isMovable: true), _WordSpec('dog', isMovable: true),
+    _WordSpec('cow', isMovable: true), _WordSpec('pig', isMovable: true),
+    _WordSpec('fish', isMovable: true), _WordSpec('bird', isMovable: true),
+    _WordSpec('sun'), _WordSpec('hat'),
+    _WordSpec('ant', isMovable: true),
     // Basic landscaping/decorative words, tier 1 (short + simple):
     _WordSpec('tree', isPassable: true),
     _WordSpec('grass', isPassable: true),
     _WordSpec('rock', isPassable: false),
   ],
   '5-6': [
-    _WordSpec('tiger'), _WordSpec('rabbit'), _WordSpec('monkey'), _WordSpec('frog'),
-    _WordSpec('zebra'), _WordSpec('fox'), _WordSpec('lion'), _WordSpec('apple'),
+    _WordSpec('tiger', isMovable: true), _WordSpec('rabbit', isMovable: true),
+    _WordSpec('monkey', isMovable: true), _WordSpec('frog', isMovable: true),
+    _WordSpec('zebra', isMovable: true), _WordSpec('fox', isMovable: true),
+    _WordSpec('lion', isMovable: true), _WordSpec('apple'),
     _WordSpec('chair'), _WordSpec('table'), _WordSpec('water'), _WordSpec('mango'),
     // Basic landscaping/decorative words, tier 2:
     _WordSpec('fence', isPassable: false),
     _WordSpec('flower', isPassable: true),
   ],
   '6-7': [
-    _WordSpec('elephant'), _WordSpec('giraffe'), _WordSpec('kangaroo'),
-    _WordSpec('parrot'), _WordSpec('donkey'), _WordSpec('lizard'),
-    _WordSpec('dinosaur'), _WordSpec('umbrella'), _WordSpec('teacher'),
-    _WordSpec('pencil'),
+    _WordSpec('elephant', isMovable: true), _WordSpec('giraffe', isMovable: true),
+    _WordSpec('kangaroo', isMovable: true), _WordSpec('parrot', isMovable: true),
+    _WordSpec('donkey', isMovable: true), _WordSpec('lizard', isMovable: true),
+    _WordSpec('dinosaur', isMovable: true),
+    _WordSpec('umbrella'), _WordSpec('teacher'), _WordSpec('pencil'),
   ],
 };
 

@@ -124,6 +124,32 @@ class _AddItemScreenState extends State<AddItemScreen> {
                             ),
                     ),
                   ),
+
+                  // 👇👇👇 新加的透明背景提醒 👇👇👇
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Teacher Tip: For best results, please upload images with a transparent background (PNG format) to avoid white boxes ruining the sandbox immersion.',
+                            style: TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 👆👆👆 提醒结束 👆👆👆
+
                   const SizedBox(height: 24),
 
                   // 2. 名字输入
@@ -185,8 +211,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     onChanged: (val) => setState(() => _isSolid = val),
                   ),
                   SwitchListTile(
-                    title: const Text('Is Movable'),
-                    subtitle: const Text('Can kids drag this item again after placing it?'),
+                    title: const Text('Self-Moving (Animal)'),
+                    subtitle: const Text('Wanders one grid square on its own every few seconds once a kid places it — for animals, not for furniture/decor'),
                     value: _isMovable,
                     activeColor: const Color(0xFF4DD9C0),
                     onChanged: (val) => setState(() => _isMovable = val),
