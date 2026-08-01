@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../home_screen.dart';
-import 'add_item_screen.dart'; // 接下来我们要写的新文件
+import 'add_item_screen.dart';
+import 'view_items_screen.dart'; // 👈 1. 导入我们刚才写的新页面
 
 class TeacherHome extends StatelessWidget {
   const TeacherHome({super.key});
@@ -34,7 +35,7 @@ class TeacherHome extends StatelessWidget {
                   const Text('Manage Sandbox Items', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
                   const SizedBox(height: 28),
                   
-                  // 唯一的管理卡片：添加沙盒物品
+                  // 管理卡片 1：添加沙盒物品
                   _menuCard(
                     icon: Icons.add_photo_alternate_rounded,
                     label: 'Add New Item',
@@ -45,6 +46,21 @@ class TeacherHome extends StatelessWidget {
                       MaterialPageRoute(builder: (_) => const AddItemScreen()),
                     ),
                   ),
+                  
+                  const SizedBox(height: 16), // 👈 卡片之间的间距
+                  
+                  // 👇 2. 新增的管理卡片 2：查看沙盒物品库
+                  _menuCard(
+                    icon: Icons.photo_library_rounded,
+                    label: 'View Items Library',
+                    subtitle: 'Manage and delete uploaded sandbox items',
+                    color: const Color(0xFFFF8FAB), // 用了背景圆圈的粉色，保持统一风格
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ViewItemsScreen()),
+                    ),
+                  ),
+                  // 👆 新增结束 👆
                   
                   const Spacer(),
                   
@@ -106,20 +122,22 @@ class TeacherHome extends StatelessWidget {
               child: Icon(icon, color: Colors.white, size: 26),
             ),
             const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF888888))
-                ),
-              ],
+            Expanded( // 加了 Expanded 防止文字太长超出屏幕
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF888888))
+                  ),
+                ],
+              ),
             ),
-            const Spacer(),
+            const SizedBox(width: 8),
             Icon(Icons.arrow_forward_ios_rounded, color: color, size: 16),
           ],
         ),
