@@ -23,351 +23,56 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
 
   final FlutterTts tts = FlutterTts();
 
-  List<Map<String, dynamic>> get questions {
+ List<Map<String, dynamic>> get questions {
     switch (widget.ageGroup) {
       case '4-5':
         return [
-          {
-            'question': 'What do you hear?',
-            'audio': 'cat',
-            'options': [
-              {'text': 'Cat', 'image': 'assets/images/cat.png'},
-              {'text': 'Dog', 'image': 'assets/images/dog.png'},
-              {'text': 'Sun', 'image': 'assets/images/sun.png'},
-              {'text': 'Hat', 'image': 'assets/images/hat.png'},
-            ],
-            'answer': 'Cat'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'dog',
-            'options': [
-              {'text': 'Cat', 'image': 'assets/images/cat.png'},
-              {'text': 'Dog', 'image': 'assets/images/dog.png'},
-              {'text': 'Sun', 'image': 'assets/images/sun.png'},
-              {'text': 'Hat', 'image': 'assets/images/hat.png'},
-            ],
-            'answer': 'Dog'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'sun',
-            'options': [
-              {'text': 'Sun', 'image': 'assets/images/sun.png'},
-              {'text': 'Hat', 'image': 'assets/images/hat.png'},
-              {'text': 'Fish', 'image': 'assets/images/fish.png'},
-              {'text': 'Cat', 'image': 'assets/images/cat.png'},
-            ],
-            'answer': 'Sun'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'hat',
-            'options': [
-              {'text': 'Dog', 'image': 'assets/images/dog.png'},
-              {'text': 'Hat', 'image': 'assets/images/hat.png'},
-              {'text': 'Fish', 'image': 'assets/images/fish.png'},
-              {'text': 'Sun', 'image': 'assets/images/sun.png'},
-            ],
-            'answer': 'Hat'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'fish',
-            'options': [
-              {'text': 'Fish', 'image': 'assets/images/fish.png'},
-              {'text': 'Cat', 'image': 'assets/images/cat.png'},
-              {'text': 'Dog', 'image': 'assets/images/dog.png'},
-              {'text': 'Hat', 'image': 'assets/images/hat.png'},
-            ],
-            'answer': 'Fish'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'pig',
-            'options': [
-              {'text': 'Pig', 'image': 'assets/images/pig.png'},
-              {'text': 'Cow', 'image': 'assets/images/cow.png'},
-              {'text': 'Ant', 'image': 'assets/images/ant.png'},
-              {'text': 'Fox', 'image': 'assets/images/fox.png'},
-            ],
-            'answer': 'Pig'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'cow',
-            'options': [
-              {'text': 'Pig', 'image': 'assets/images/pig.png'},
-              {'text': 'Cow', 'image': 'assets/images/cow.png'},
-              {'text': 'Ant', 'image': 'assets/images/ant.png'},
-              {'text': 'Fox', 'image': 'assets/images/fox.png'},
-            ],
-            'answer': 'Cow'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'bird',
-            'options': [
-              {'text': 'Bird', 'image': 'assets/images/bird.png'},
-              {'text': 'Frog', 'image': 'assets/images/frog.png'},
-              {'text': 'Duck', 'image': 'assets/images/duck.png'},
-              {'text': 'Lion', 'image': 'assets/images/lion.png'},
-            ],
-            'answer': 'Bird'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'frog',
-            'options': [
-              {'text': 'Bird', 'image': 'assets/images/bird.png'},
-              {'text': 'Frog', 'image': 'assets/images/frog.png'},
-              {'text': 'Duck', 'image': 'assets/images/duck.png'},
-              {'text': 'Lion', 'image': 'assets/images/lion.png'},
-            ],
-            'answer': 'Frog'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'lion',
-            'options': [
-              {'text': 'Bird', 'image': 'assets/images/bird.png'},
-              {'text': 'Frog', 'image': 'assets/images/frog.png'},
-              {'text': 'Duck', 'image': 'assets/images/duck.png'},
-              {'text': 'Lion', 'image': 'assets/images/lion.png'},
-            ],
-            'answer': 'Lion'
-          },
+          {'question': 'What do you hear?', 'audio': 'cat', 'options': [{'text': 'Cat', 'image': 'assets/images/cat.png'}, {'text': 'Dog', 'image': 'assets/images/dog.png'}, {'text': 'Sun', 'image': 'assets/images/sun.png'}, {'text': 'Tree', 'image': 'assets/images/tree.png'}], 'answer': 'Cat'},
+          {'question': 'What do you hear?', 'audio': 'dog', 'options': [{'text': 'Dog', 'image': 'assets/images/dog.png'}, {'text': 'Cow', 'image': 'assets/images/cow.png'}, {'text': 'Hat', 'image': 'assets/images/hat.png'}, {'text': 'Grass', 'image': 'assets/images/grass.png'}], 'answer': 'Dog'},
+          {'question': 'What do you hear?', 'audio': 'cow', 'options': [{'text': 'Cow', 'image': 'assets/images/cow.png'}, {'text': 'Pig', 'image': 'assets/images/pig.png'}, {'text': 'Bird', 'image': 'assets/images/bird.png'}, {'text': 'Ant', 'image': 'assets/images/ant.png'}], 'answer': 'Cow'},
+          {'question': 'What do you hear?', 'audio': 'pig', 'options': [{'text': 'Pig', 'image': 'assets/images/pig.png'}, {'text': 'Fish', 'image': 'assets/images/fish.png'}, {'text': 'Tree', 'image': 'assets/images/tree.png'}, {'text': 'Rock', 'image': 'assets/images/rock.png'}], 'answer': 'Pig'},
+          {'question': 'What do you hear?', 'audio': 'fish', 'options': [{'text': 'Fish', 'image': 'assets/images/fish.png'}, {'text': 'Bird', 'image': 'assets/images/bird.png'}, {'text': 'Cat', 'image': 'assets/images/cat.png'}, {'text': 'Hat', 'image': 'assets/images/hat.png'}], 'answer': 'Fish'},
+          {'question': 'What do you hear?', 'audio': 'bird', 'options': [{'text': 'Bird', 'image': 'assets/images/bird.png'}, {'text': 'Sun', 'image': 'assets/images/sun.png'}, {'text': 'Ant', 'image': 'assets/images/ant.png'}, {'text': 'Dog', 'image': 'assets/images/dog.png'}], 'answer': 'Bird'},
+          {'question': 'What do you hear?', 'audio': 'sun', 'options': [{'text': 'Sun', 'image': 'assets/images/sun.png'}, {'text': 'Hat', 'image': 'assets/images/hat.png'}, {'text': 'Grass', 'image': 'assets/images/grass.png'}, {'text': 'Cow', 'image': 'assets/images/cow.png'}], 'answer': 'Sun'},
+          {'question': 'What do you hear?', 'audio': 'hat', 'options': [{'text': 'Hat', 'image': 'assets/images/hat.png'}, {'text': 'Tree', 'image': 'assets/images/tree.png'}, {'text': 'Rock', 'image': 'assets/images/rock.png'}, {'text': 'Pig', 'image': 'assets/images/pig.png'}], 'answer': 'Hat'},
+          {'question': 'What do you hear?', 'audio': 'ant', 'options': [{'text': 'Ant', 'image': 'assets/images/ant.png'}, {'text': 'Rock', 'image': 'assets/images/rock.png'}, {'text': 'Cat', 'image': 'assets/images/cat.png'}, {'text': 'Fish', 'image': 'assets/images/fish.png'}], 'answer': 'Ant'},
+          {'question': 'What do you hear?', 'audio': 'tree', 'options': [{'text': 'Tree', 'image': 'assets/images/tree.png'}, {'text': 'Grass', 'image': 'assets/images/grass.png'}, {'text': 'Dog', 'image': 'assets/images/dog.png'}, {'text': 'Bird', 'image': 'assets/images/bird.png'}], 'answer': 'Tree'},
+          {'question': 'What do you hear?', 'audio': 'grass', 'options': [{'text': 'Grass', 'image': 'assets/images/grass.png'}, {'text': 'Rock', 'image': 'assets/images/rock.png'}, {'text': 'Sun', 'image': 'assets/images/sun.png'}, {'text': 'Pig', 'image': 'assets/images/pig.png'}], 'answer': 'Grass'},
+          {'question': 'What do you hear?', 'audio': 'rock', 'options': [{'text': 'Rock', 'image': 'assets/images/rock.png'}, {'text': 'Cat', 'image': 'assets/images/cat.png'}, {'text': 'Hat', 'image': 'assets/images/hat.png'}, {'text': 'Cow', 'image': 'assets/images/cow.png'}], 'answer': 'Rock'},
         ];
       case '5-6':
         return [
-          {
-            'question': 'What do you hear?',
-            'audio': 'apple',
-            'options': [
-              {'text': 'Apple', 'image': 'assets/images/apple.png'},
-              {'text': 'Mango', 'image': 'assets/images/mango.png'},
-              {'text': 'Grape', 'image': 'assets/images/grape.png'},
-              {'text': 'Lemon', 'image': 'assets/images/lemon.png'},
-            ],
-            'answer': 'Apple'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'rabbit',
-            'options': [
-              {'text': 'Rabbit', 'image': 'assets/images/rabbit.png'},
-              {'text': 'Monkey', 'image': 'assets/images/monkey.png'},
-              {'text': 'Tiger', 'image': 'assets/images/tiger.png'},
-              {'text': 'Parrot', 'image': 'assets/images/parrot.png'},
-            ],
-            'answer': 'Rabbit'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'yellow',
-            'options': [
-              {'text': 'Yellow', 'image': 'assets/images/yellow.png'},
-              {'text': 'Purple', 'image': 'assets/images/purple.png'},
-              {'text': 'Orange', 'image': 'assets/images/orange.png'},
-              {'text': 'Green', 'image': 'assets/images/green.png'},
-            ],
-            'answer': 'Yellow'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'table',
-            'options': [
-              {'text': 'Table', 'image': 'assets/images/table.png'},
-              {'text': 'Chair', 'image': 'assets/images/chair.png'},
-              {'text': 'Window', 'image': 'assets/images/window.png'},
-              {'text': 'Bottle', 'image': 'assets/images/bottle.png'},
-            ],
-            'answer': 'Table'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'water',
-            'options': [
-              {'text': 'Water', 'image': 'assets/images/water.png'},
-              {'text': 'Paper', 'image': 'assets/images/paper.png'},
-              {'text': 'Flower', 'image': 'assets/images/flower.png'},
-              {'text': 'Rubber', 'image': 'assets/images/rubber.png'},
-            ],
-            'answer': 'Water'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'banana',
-            'options': [
-              {'text': 'Banana', 'image': 'assets/images/banana.png'},
-              {'text': 'Orange', 'image': 'assets/images/orange.png'},
-              {'text': 'Cherry', 'image': 'assets/images/cherry.png'},
-              {'text': 'Grapes', 'image': 'assets/images/grapes.png'},
-            ],
-            'answer': 'Banana'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'monkey',
-            'options': [
-              {'text': 'Monkey', 'image': 'assets/images/monkey.png'},
-              {'text': 'Donkey', 'image': 'assets/images/donkey.png'},
-              {'text': 'Zebra', 'image': 'assets/images/zebra.png'},
-              {'text': 'Giraffe', 'image': 'assets/images/giraffe.png'},
-            ],
-            'answer': 'Monkey'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'purple',
-            'options': [
-              {'text': 'Yellow', 'image': 'assets/images/yellow.png'},
-              {'text': 'Purple', 'image': 'assets/images/purple.png'},
-              {'text': 'Orange', 'image': 'assets/images/orange.png'},
-              {'text': 'Green', 'image': 'assets/images/green.png'},
-            ],
-            'answer': 'Purple'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'pencil',
-            'options': [
-              {'text': 'Table', 'image': 'assets/images/table.png'},
-              {'text': 'Chair', 'image': 'assets/images/chair.png'},
-              {'text': 'Pencil', 'image': 'assets/images/pencil.png'},
-              {'text': 'Ruler', 'image': 'assets/images/ruler.png'},
-            ],
-            'answer': 'Pencil'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'doctor',
-            'options': [
-              {'text': 'Nurse', 'image': 'assets/images/nurse.png'},
-              {'text': 'Doctor', 'image': 'assets/images/doctor.png'},
-              {'text': 'Teacher', 'image': 'assets/images/teacher.png'},
-              {'text': 'Pilot', 'image': 'assets/images/pilot.png'},
-            ],
-            'answer': 'Doctor'
-          },
+          {'question': 'What do you hear?', 'audio': 'tiger', 'options': [{'text': 'Tiger', 'image': 'assets/images/tiger.png'}, {'text': 'Rabbit', 'image': 'assets/images/rabbit.png'}, {'text': 'Monkey', 'image': 'assets/images/monkey.png'}, {'text': 'Apple', 'image': 'assets/images/apple.png'}], 'answer': 'Tiger'},
+          {'question': 'What do you hear?', 'audio': 'rabbit', 'options': [{'text': 'Rabbit', 'image': 'assets/images/rabbit.png'}, {'text': 'Frog', 'image': 'assets/images/frog.png'}, {'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Flower', 'image': 'assets/images/flower.png'}], 'answer': 'Rabbit'},
+          {'question': 'What do you hear?', 'audio': 'monkey', 'options': [{'text': 'Monkey', 'image': 'assets/images/monkey.png'}, {'text': 'Zebra', 'image': 'assets/images/zebra.png'}, {'text': 'Table', 'image': 'assets/images/table.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}], 'answer': 'Monkey'},
+          {'question': 'What do you hear?', 'audio': 'frog', 'options': [{'text': 'Frog', 'image': 'assets/images/frog.png'}, {'text': 'Fox', 'image': 'assets/images/fox.png'}, {'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Fence', 'image': 'assets/images/fence.png'}], 'answer': 'Frog'},
+          {'question': 'What do you hear?', 'audio': 'zebra', 'options': [{'text': 'Zebra', 'image': 'assets/images/zebra.png'}, {'text': 'Lion', 'image': 'assets/images/lion.png'}, {'text': 'Tiger', 'image': 'assets/images/tiger.png'}, {'text': 'Apple', 'image': 'assets/images/apple.png'}], 'answer': 'Zebra'},
+          {'question': 'What do you hear?', 'audio': 'fox', 'options': [{'text': 'Fox', 'image': 'assets/images/fox.png'}, {'text': 'Rabbit', 'image': 'assets/images/rabbit.png'}, {'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}], 'answer': 'Fox'},
+          {'question': 'What do you hear?', 'audio': 'lion', 'options': [{'text': 'Lion', 'image': 'assets/images/lion.png'}, {'text': 'Monkey', 'image': 'assets/images/monkey.png'}, {'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Flower', 'image': 'assets/images/flower.png'}], 'answer': 'Lion'},
+          {'question': 'What do you hear?', 'audio': 'apple', 'options': [{'text': 'Apple', 'image': 'assets/images/apple.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}, {'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Frog', 'image': 'assets/images/frog.png'}], 'answer': 'Apple'},
+          {'question': 'What do you hear?', 'audio': 'chair', 'options': [{'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Table', 'image': 'assets/images/table.png'}, {'text': 'Fence', 'image': 'assets/images/fence.png'}, {'text': 'Zebra', 'image': 'assets/images/zebra.png'}], 'answer': 'Chair'},
+          {'question': 'What do you hear?', 'audio': 'table', 'options': [{'text': 'Table', 'image': 'assets/images/table.png'}, {'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}, {'text': 'Fox', 'image': 'assets/images/fox.png'}], 'answer': 'Table'},
+          {'question': 'What do you hear?', 'audio': 'water', 'options': [{'text': 'Water', 'image': 'assets/images/water.png'}, {'text': 'Apple', 'image': 'assets/images/apple.png'}, {'text': 'Flower', 'image': 'assets/images/flower.png'}, {'text': 'Lion', 'image': 'assets/images/lion.png'}], 'answer': 'Water'},
+          {'question': 'What do you hear?', 'audio': 'mango', 'options': [{'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Apple', 'image': 'assets/images/apple.png'}, {'text': 'Table', 'image': 'assets/images/table.png'}, {'text': 'Tiger', 'image': 'assets/images/tiger.png'}], 'answer': 'Mango'},
+          {'question': 'What do you hear?', 'audio': 'fence', 'options': [{'text': 'Fence', 'image': 'assets/images/fence.png'}, {'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Flower', 'image': 'assets/images/flower.png'}, {'text': 'Rabbit', 'image': 'assets/images/rabbit.png'}], 'answer': 'Fence'},
+          {'question': 'What do you hear?', 'audio': 'flower', 'options': [{'text': 'Flower', 'image': 'assets/images/flower.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}, {'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Monkey', 'image': 'assets/images/monkey.png'}], 'answer': 'Flower'},
         ];
       case '6-7':
       default:
         return [
-          {
-            'question': 'What do you hear?',
-            'audio': 'elephant',
-            'options': [
-              {'text': 'Elephant', 'image': 'assets/images/elephant.png'},
-              {'text': 'Umbrella', 'image': 'assets/images/umbrella.png'},
-              {'text': 'Ambulance', 'image': 'assets/images/ambulance.png'},
-              {'text': 'Alphabet', 'image': 'assets/images/alphabet.png'},
-            ],
-            'answer': 'Elephant'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'butterfly',
-            'options': [
-              {'text': 'Butterfly', 'image': 'assets/images/butterfly.png'},
-              {'text': 'Dragonfly', 'image': 'assets/images/dragonfly.png'},
-              {'text': 'Caterpillar', 'image': 'assets/images/caterpillar.png'},
-              {'text': 'Grasshopper', 'image': 'assets/images/grasshopper.png'},
-            ],
-            'answer': 'Butterfly'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'triangle',
-            'options': [
-              {'text': 'Triangle', 'image': 'assets/images/triangle.png'},
-              {'text': 'Rectangle', 'image': 'assets/images/rectangle.png'},
-              {'text': 'Pentagon', 'image': 'assets/images/pentagon.png'},
-              {'text': 'Cylinder', 'image': 'assets/images/cylinder.png'},
-            ],
-            'answer': 'Triangle'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'library',
-            'options': [
-              {'text': 'Library', 'image': 'assets/images/library.png'},
-              {'text': 'Bakery', 'image': 'assets/images/bakery.png'},
-              {'text': 'Factory', 'image': 'assets/images/factory.png'},
-              {'text': 'Laundry', 'image': 'assets/images/laundry.png'},
-            ],
-            'answer': 'Library'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'comfortable',
-            'options': [
-              {'text': 'Comfortable', 'image': 'assets/images/comfortable.png'},
-              {'text': 'Complicated', 'image': 'assets/images/complicated.png'},
-              {'text': 'Community', 'image': 'assets/images/community.png'},
-              {'text': 'Competition', 'image': 'assets/images/competition.png'},
-            ],
-            'answer': 'Comfortable'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'astronaut',
-            'options': [
-              {'text': 'Astronaut', 'image': 'assets/images/astronaut.png'},
-              {'text': 'Architect', 'image': 'assets/images/architect.png'},
-              {'text': 'Archaeologist', 'image': 'assets/images/archaeologist.png'},
-              {'text': 'Assistant', 'image': 'assets/images/assistant.png'},
-            ],
-            'answer': 'Astronaut'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'dinosaur',
-            'options': [
-              {'text': 'Crocodile', 'image': 'assets/images/crocodile.png'},
-              {'text': 'Dinosaur', 'image': 'assets/images/dinosaur.png'},
-              {'text': 'Lizard', 'image': 'assets/images/lizard.png'},
-              {'text': 'Kangaroo', 'image': 'assets/images/kangaroo.png'},
-            ],
-            'answer': 'Dinosaur'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'rectangle',
-            'options': [
-              {'text': 'Triangle', 'image': 'assets/images/triangle.png'},
-              {'text': 'Rectangle', 'image': 'assets/images/rectangle.png'},
-              {'text': 'Pentagon', 'image': 'assets/images/pentagon.png'},
-              {'text': 'Cylinder', 'image': 'assets/images/cylinder.png'},
-            ],
-            'answer': 'Rectangle'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'hospital',
-            'options': [
-              {'text': 'Library', 'image': 'assets/images/library.png'},
-              {'text': 'Hospital', 'image': 'assets/images/hospital.png'},
-              {'text': 'Factory', 'image': 'assets/images/factory.png'},
-              {'text': 'University', 'image': 'assets/images/university.png'},
-            ],
-            'answer': 'Hospital'
-          },
-          {
-            'question': 'What do you hear?',
-            'audio': 'beautiful',
-            'options': [
-              {'text': 'Beautiful', 'image': 'assets/images/beautiful.png'},
-              {'text': 'Wonderful', 'image': 'assets/images/wonderful.png'},
-              {'text': 'Dangerous', 'image': 'assets/images/dangerous.png'},
-              {'text': 'Powerful', 'image': 'assets/images/powerful.png'},
-            ],
-            'answer': 'Beautiful'
-          },
+          {'question': 'What do you hear?', 'audio': 'elephant', 'options': [{'text': 'Elephant', 'image': 'assets/images/elephant.png'}, {'text': 'Giraffe', 'image': 'assets/images/giraffe.png'}, {'text': 'Kangaroo', 'image': 'assets/images/kangaroo.png'}, {'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}], 'answer': 'Elephant'},
+          {'question': 'What do you hear?', 'audio': 'giraffe', 'options': [{'text': 'Giraffe', 'image': 'assets/images/giraffe.png'}, {'text': 'Parrot', 'image': 'assets/images/parrot.png'}, {'text': 'Teacher', 'image': 'assets/images/teacher.png'}, {'text': 'Pencil', 'image': 'assets/images/pencil.png'}], 'answer': 'Giraffe'},
+          {'question': 'What do you hear?', 'audio': 'kangaroo', 'options': [{'text': 'Kangaroo', 'image': 'assets/images/kangaroo.png'}, {'text': 'Donkey', 'image': 'assets/images/donkey.png'}, {'text': 'Elephant', 'image': 'assets/images/elephant.png'}, {'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}], 'answer': 'Kangaroo'},
+          {'question': 'What do you hear?', 'audio': 'parrot', 'options': [{'text': 'Parrot', 'image': 'assets/images/parrot.png'}, {'text': 'Lizard', 'image': 'assets/images/lizard.png'}, {'text': 'Giraffe', 'image': 'assets/images/giraffe.png'}, {'text': 'Teacher', 'image': 'assets/images/teacher.png'}], 'answer': 'Parrot'},
+          {'question': 'What do you hear?', 'audio': 'donkey', 'options': [{'text': 'Donkey', 'image': 'assets/images/donkey.png'}, {'text': 'Dinosaur', 'image': 'assets/images/dinosaur.png'}, {'text': 'Kangaroo', 'image': 'assets/images/kangaroo.png'}, {'text': 'Pencil', 'image': 'assets/images/pencil.png'}], 'answer': 'Donkey'},
+          {'question': 'What do you hear?', 'audio': 'lizard', 'options': [{'text': 'Lizard', 'image': 'assets/images/lizard.png'}, {'text': 'Parrot', 'image': 'assets/images/parrot.png'}, {'text': 'Dinosaur', 'image': 'assets/images/dinosaur.png'}, {'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}], 'answer': 'Lizard'},
+          {'question': 'What do you hear?', 'audio': 'dinosaur', 'options': [{'text': 'Dinosaur', 'image': 'assets/images/dinosaur.png'}, {'text': 'Elephant', 'image': 'assets/images/elephant.png'}, {'text': 'Donkey', 'image': 'assets/images/donkey.png'}, {'text': 'Teacher', 'image': 'assets/images/teacher.png'}], 'answer': 'Dinosaur'},
+          {'question': 'What do you hear?', 'audio': 'umbrella', 'options': [{'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}, {'text': 'Pencil', 'image': 'assets/images/pencil.png'}, {'text': 'Giraffe', 'image': 'assets/images/giraffe.png'}, {'text': 'Lizard', 'image': 'assets/images/lizard.png'}], 'answer': 'Umbrella'},
+          {'question': 'What do you hear?', 'audio': 'teacher', 'options': [{'text': 'Teacher', 'image': 'assets/images/teacher.png'}, {'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}, {'text': 'Kangaroo', 'image': 'assets/images/kangaroo.png'}, {'text': 'Dinosaur', 'image': 'assets/images/dinosaur.png'}], 'answer': 'Teacher'},
+          {'question': 'What do you hear?', 'audio': 'pencil', 'options': [{'text': 'Pencil', 'image': 'assets/images/pencil.png'}, {'text': 'Teacher', 'image': 'assets/images/teacher.png'}, {'text': 'Elephant', 'image': 'assets/images/elephant.png'}, {'text': 'Parrot', 'image': 'assets/images/parrot.png'}], 'answer': 'Pencil'},
         ];
     }
   }
-
   // 第二步：改写 initState 并加入 _loadDifficulty
   @override
   void initState() {

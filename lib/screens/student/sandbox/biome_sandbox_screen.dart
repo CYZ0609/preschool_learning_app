@@ -53,7 +53,8 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   bool buildMode = false;
   bool bgFailed = false;
   bool _initialTransformSet = false; // guards the LayoutBuilder one-time camera lock
-  bool _hasNewContent = false;       
+  bool _hasNewContent = false;      
+  bool _hideUI = false; 
   List<String> unlockedWords = [];
   List<PlacedItem> placedItems = [];
   List<LessonWord> _globalItems = [];
@@ -123,18 +124,45 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
 
   LessonWord? _wordFor(String itemId) {
     try {
+      return widget.lesson.words.firstWhere((w) => w.word == itemId);
+    } catch (_) {}
+
+    // 2. 优先级其次：检查老师在后台设置的全局物品（这能成功覆盖掉系统默认的树和石头）
+    try {
+      return _globalItems.firstWhere((w) => w.word == itemId);
+    } catch (_) {}
+
+    // 3. 优先级最低：如果老师没改过，才使用系统自带的默认属性
+    try {
       return _globalCatalog().firstWhere((w) => w.word == itemId);
     } catch (_) {
       return null;
     }
   }
 
-  // --- Dynamic Grid Span ---
-  // 树设为 3x3，其他所有物品默认设为 2x2（整体增大一格）
+  // ✨ 动态读取物品尺寸
   int _getItemGridSpan(String itemId) {
+    final word = _wordFor(itemId);
+    
+    // 如果模型里读取到了后台设置的 width，就优先用后台的尺寸
+    if (word != null && word.width != null && word.width! > 0) {
+      return word.width!;
+    }
+    
+    // 兜底逻辑：如果后台没设，再用默认值
     if (itemId == 'TREE') return 7; 
     if (itemId == 'SUN') return 9; 
     return 3;
+  }
+
+  // ✨ 新增：动态读取物品放大倍数
+  double _getItemScale(String itemId) {
+    // 之后如果你在 LessonWord 数据库里也加了 scale 字段，可以解除下面这两行的注释来读取：
+    // final word = _wordFor(itemId);
+    // if (word != null && word.scale != null) return word.scale!;
+    
+    // 目前先统一默认放大 1.6 倍，你可以随意改这个数字看看效果[cite: 2]
+    return 2.0; 
   }
 
   Set<String> _computeObstacleCells() {
@@ -202,7 +230,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
 
     setState(() {
       placedItems.add(PlacedItem(itemId: itemId, gridX: clampedX.toDouble(), gridY: clampedY.toDouble()));
-      unlockedWords.remove(itemId);
     });
     _syncMovableRuntimes();
 
@@ -217,7 +244,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   Future<void> _packUpItem(PlacedItem item) async {
     setState(() {
       placedItems.remove(item);
-      unlockedWords.add(item.itemId);
     });
     _syncMovableRuntimes();
     await BuildModeService.savePlacements(widget.kidId, widget.biome.name, placedItems);
@@ -243,8 +269,13 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
         unlockedWords: unlockedWords,
         onTapLocked: (word) async {
           Navigator.pop(context);
+          setState(() => _hideUI = true);
           await widget.onOpenWord(word);
-          if (mounted) await _loadBuildMode();
+          if (mounted) {
+            setState(() => _hideUI = false);
+           
+            await _loadBuildMode();
+          }
         },
         onTapUnlocked: (word) {
           Navigator.pop(context);
@@ -385,7 +416,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                         width: cellSize * _getItemGridSpan(entry.key.itemId),
                                         height: cellSize * _getItemGridSpan(entry.key.itemId),
                                         child: _wordFor(entry.key.itemId) != null
-                                            ? WordImage(imageAsset: _wordFor(entry.key.itemId)!.imageAsset)
+                                            ? WordImage(
+                                                imageAsset: _wordFor(entry.key.itemId)!.imageAsset,
+                                                scale: _getItemScale(entry.key.itemId), // ✨ 修改：传入放大倍数
+                                              )
                                             : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
                                       ),
                                     ),
@@ -403,7 +437,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                         width: cellSize * _getItemGridSpan(placed.itemId),
                                         height: cellSize * _getItemGridSpan(placed.itemId),
                                         child: _wordFor(placed.itemId) != null
-                                            ? WordImage(imageAsset: _wordFor(placed.itemId)!.imageAsset)
+                                            ? WordImage(
+                                                imageAsset: _wordFor(placed.itemId)!.imageAsset,
+                                                scale: _getItemScale(placed.itemId), // ✨ 修改：传入放大倍数
+                                              )
                                             : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
                                       ),
                                     ),
@@ -424,7 +461,10 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                       width: cellSize * _getItemGridSpan(selectedItemId!),
                                       height: cellSize * _getItemGridSpan(selectedItemId!),
                                       child: _wordFor(selectedItemId!) != null
-                                          ? WordImage(imageAsset: _wordFor(selectedItemId!)!.imageAsset)
+                                          ? WordImage(
+                                              imageAsset: _wordFor(selectedItemId!)!.imageAsset,
+                                              scale: _getItemScale(selectedItemId!), // ✨ 修改：传入放大倍数
+                                            )
                                           : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
                                     ),
                                   ),
@@ -436,6 +476,7 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                     ),
                   ),
                 ),
+                if (!_hideUI)
                 SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -534,6 +575,7 @@ class _HeldItemChip extends StatelessWidget {
           child: SizedBox(
             width: 56, height: 56,
             child: word != null
+                // 这里的 WordImage 没加 scale，因为你可能希望背包和底部的拖拽图标保持原来的大小不出界
                 ? WordImage(imageAsset: word!.imageAsset, errorWidget: const Icon(Icons.emoji_nature_rounded))
                 : const Icon(Icons.emoji_nature_rounded),
           ),
@@ -688,6 +730,7 @@ class _InventoryModalState extends State<_InventoryModal> {
                               SizedBox(
                                 width: 80,
                                 height: 80,
+                                // 背包里的图片也没加 scale，保证它们能乖乖待在格子里
                                 child: WordImage(
                                   imageAsset: word.imageAsset,
                                   errorWidget: const Icon(Icons.emoji_nature_rounded, size: 48),

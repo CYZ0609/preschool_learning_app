@@ -23,7 +23,10 @@ class SandboxItemService {
       final itemId = (data['itemId'] as String? ?? '').trim();
       final imageUrl = data['imageUrl'] as String?;
       if (itemId.isEmpty || imageUrl == null || imageUrl.isEmpty) continue;
+      
+      // 注意：由于 Firebase 里的 key 是 isSolid，我们需要将它反转存为 isPassable
       final isSolid = data['isSolid'] as bool? ?? true;
+      
       result.add(LessonWord(
         word: itemId.toUpperCase(),
         // WordImage already renders http(s) URLs directly, so the
@@ -31,6 +34,9 @@ class SandboxItemService {
         imageAsset: imageUrl,
         isMovable: data['isMovable'] as bool? ?? false,
         isPassable: !isSolid,
+        // ✨ 新增：读取并映射宽和高
+        width: data['width'] as int?,
+        height: data['height'] as int?,
       ));
     }
     return result;

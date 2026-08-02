@@ -168,8 +168,8 @@ class _SpeakingStepState extends State<SpeakingStep> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         SizedBox(
-          width: 100,
-          height: 100,
+          width: 300,
+          height: 300,
           child: WordImage(imageAsset: widget.imageAsset),
         ),
         const SizedBox(height: 16),

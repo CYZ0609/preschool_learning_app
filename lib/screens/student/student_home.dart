@@ -230,35 +230,45 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                   lesson: lesson,
                   kidId: widget.kidId,
                   onOpenWord: (word) async {
-  // Wait for the panel to close. It pops with `true` only
-  // when the child genuinely finishes the last step
-  // (onFinished); tapping the ✕ pops with `false`.
-  final finished = await Navigator.push<bool>(
-    context,
-    MaterialPageRoute(
-      builder: (_) => UniversalLearningPanel(
-        word: word,
-        ageGroup: widget.ageGroup,
-        onFinished: () => Navigator.pop(context, true), // close panel
-      ),
-    ),
-  );
-  if (finished != true) return; // quit early via ✕ — no unlock, no finale
-  // Then wait for the finale to close too. Only once BOTH
-  // are done do we return control to BiomeSandboxScreen,
-  // which reloads unlockedWords so the newly-unlocked
-  // word can actually be dragged onto the grid.
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => UnlockFinaleScreen(
-        word: word,
-        kidId: widget.kidId,
-        onDone: () => Navigator.pop(context), // close finale, back to sandbox
-      ),
-    ),
-  );
-},
+                    // Wait for the panel to close. It pops with `true` only
+                    // when the child genuinely finishes the last step
+                    // (onFinished); tapping the ✕ pops with `false`.
+                    
+                    // 修改这里：使用 PageRouteBuilder 实现透明覆盖效果
+                    final finished = await Navigator.push<bool>(
+                      context,
+                      PageRouteBuilder(
+                        opaque: false, // 核心属性：设为 false，允许透出下层的沙盒地图
+                        pageBuilder: (context, animation, secondaryAnimation) {
+                          return UniversalLearningPanel(
+                            word: word,
+                            ageGroup: widget.ageGroup,
+                            onFinished: () => Navigator.pop(context, true), // close panel
+                          );
+                        },
+                        // 可选：加入一个简单的淡入淡出动画，视觉体验更好
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return FadeTransition(opacity: animation, child: child);
+                        },
+                      ),
+                    );
+
+                    if (finished != true) return; // quit early via ✕ — no unlock, no finale
+                    // Then wait for the finale to close too. Only once BOTH
+                    // are done do we return control to BiomeSandboxScreen,
+                    // which reloads unlockedWords so the newly-unlocked
+                    // word can actually be dragged onto the grid.
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => UnlockFinaleScreen(
+                          word: word,
+                          kidId: widget.kidId,
+                          onDone: () => Navigator.pop(context), // close finale, back to sandbox
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             );

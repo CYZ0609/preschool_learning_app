@@ -22,51 +22,56 @@ class _ReadingGameScreenState extends State<ReadingGameScreen> {
   late List<Map<String, dynamic>> questions;
 
   // 📖 完美匹配你本地 30 张真实图片的 10 题制“看词选图”题库
-  List<Map<String, dynamic>> _generateQuestions(String age) {
+List<Map<String, dynamic>> _generateQuestions(String age) {
     switch (age) {
       case '4-5':
         return [
-          {'word': 'CAT', 'answer': 'assets/images/cat.png', 'options': ['assets/images/cat.png', 'assets/images/dog.png', 'assets/images/sun.png', 'assets/images/hat.png']},
-          {'word': 'DOG', 'answer': 'assets/images/dog.png', 'options': ['assets/images/dog.png', 'assets/images/fish.png', 'assets/images/pig.png', 'assets/images/cow.png']},
-          {'word': 'SUN', 'answer': 'assets/images/sun.png', 'options': ['assets/images/sun.png', 'assets/images/hat.png', 'assets/images/bird.png', 'assets/images/frog.png']},
-          {'word': 'HAT', 'answer': 'assets/images/hat.png', 'options': ['assets/images/hat.png', 'assets/images/lion.png', 'assets/images/cat.png', 'assets/images/dog.png']},
-          {'word': 'FISH', 'answer': 'assets/images/fish.png', 'options': ['assets/images/fish.png', 'assets/images/sun.png', 'assets/images/pig.png', 'assets/images/cow.png']},
-          {'word': 'PIG', 'answer': 'assets/images/pig.png', 'options': ['assets/images/pig.png', 'assets/images/frog.png', 'assets/images/lion.png', 'assets/images/hat.png']},
-          {'word': 'COW', 'answer': 'assets/images/cow.png', 'options': ['assets/images/cow.png', 'assets/images/dog.png', 'assets/images/fish.png', 'assets/images/bird.png']},
-          {'word': 'BIRD', 'answer': 'assets/images/bird.png', 'options': ['assets/images/bird.png', 'assets/images/cat.png', 'assets/images/pig.png', 'assets/images/sun.png']},
-          {'word': 'FROG', 'answer': 'assets/images/frog.png', 'options': ['assets/images/frog.png', 'assets/images/hat.png', 'assets/images/cow.png', 'assets/images/lion.png']},
-          {'word': 'LION', 'answer': 'assets/images/lion.png', 'options': ['assets/images/lion.png', 'assets/images/dog.png', 'assets/images/bird.png', 'assets/images/fish.png']},
+          {'word': 'CAT', 'answer': 'assets/images/cat.png', 'options': ['assets/images/cat.png', 'assets/images/dog.png', 'assets/images/sun.png', 'assets/images/tree.png']},
+          {'word': 'DOG', 'answer': 'assets/images/dog.png', 'options': ['assets/images/dog.png', 'assets/images/cow.png', 'assets/images/hat.png', 'assets/images/grass.png']},
+          {'word': 'COW', 'answer': 'assets/images/cow.png', 'options': ['assets/images/cow.png', 'assets/images/pig.png', 'assets/images/bird.png', 'assets/images/ant.png']},
+          {'word': 'PIG', 'answer': 'assets/images/pig.png', 'options': ['assets/images/pig.png', 'assets/images/fish.png', 'assets/images/tree.png', 'assets/images/rock.png']},
+          {'word': 'FISH', 'answer': 'assets/images/fish.png', 'options': ['assets/images/fish.png', 'assets/images/bird.png', 'assets/images/cat.png', 'assets/images/hat.png']},
+          {'word': 'BIRD', 'answer': 'assets/images/bird.png', 'options': ['assets/images/bird.png', 'assets/images/sun.png', 'assets/images/ant.png', 'assets/images/dog.png']},
+          {'word': 'SUN', 'answer': 'assets/images/sun.png', 'options': ['assets/images/sun.png', 'assets/images/hat.png', 'assets/images/grass.png', 'assets/images/cow.png']},
+          {'word': 'HAT', 'answer': 'assets/images/hat.png', 'options': ['assets/images/hat.png', 'assets/images/tree.png', 'assets/images/rock.png', 'assets/images/pig.png']},
+          {'word': 'ANT', 'answer': 'assets/images/ant.png', 'options': ['assets/images/ant.png', 'assets/images/rock.png', 'assets/images/cat.png', 'assets/images/fish.png']},
+          {'word': 'TREE', 'answer': 'assets/images/tree.png', 'options': ['assets/images/tree.png', 'assets/images/grass.png', 'assets/images/dog.png', 'assets/images/bird.png']},
+          {'word': 'GRASS', 'answer': 'assets/images/grass.png', 'options': ['assets/images/grass.png', 'assets/images/rock.png', 'assets/images/sun.png', 'assets/images/pig.png']},
+          {'word': 'ROCK', 'answer': 'assets/images/rock.png', 'options': ['assets/images/rock.png', 'assets/images/cat.png', 'assets/images/hat.png', 'assets/images/cow.png']},
         ];
       case '5-6':
         return [
-          {'word': 'APPLE', 'answer': 'assets/images/apple.png', 'options': ['assets/images/apple.png', 'assets/images/rabbit.png', 'assets/images/yellow.png', 'assets/images/table.png']},
-          {'word': 'RABBIT', 'answer': 'assets/images/rabbit.png', 'options': ['assets/images/rabbit.png', 'assets/images/monkey.png', 'assets/images/water.png', 'assets/images/banana.png']},
-          {'word': 'YELLOW', 'answer': 'assets/images/yellow.png', 'options': ['assets/images/yellow.png', 'assets/images/purple.png', 'assets/images/pencil.png', 'assets/images/doctor.png']},
-          {'word': 'TABLE', 'answer': 'assets/images/table.png', 'options': ['assets/images/table.png', 'assets/images/water.png', 'assets/images/apple.png', 'assets/images/rabbit.png']},
-          {'word': 'WATER', 'answer': 'assets/images/water.png', 'options': ['assets/images/water.png', 'assets/images/banana.png', 'assets/images/purple.png', 'assets/images/pencil.png']},
-          {'word': 'BANANA', 'answer': 'assets/images/banana.png', 'options': ['assets/images/banana.png', 'assets/images/monkey.png', 'assets/images/doctor.png', 'assets/images/yellow.png']},
-          {'word': 'MONKEY', 'answer': 'assets/images/monkey.png', 'options': ['assets/images/monkey.png', 'assets/images/table.png', 'assets/images/apple.png', 'assets/images/rabbit.png']},
-          {'word': 'PURPLE', 'answer': 'assets/images/purple.png', 'options': ['assets/images/purple.png', 'assets/images/pencil.png', 'assets/images/doctor.png', 'assets/images/water.png']},
-          {'word': 'PENCIL', 'answer': 'assets/images/pencil.png', 'options': ['assets/images/pencil.png', 'assets/images/apple.png', 'assets/images/banana.png', 'assets/images/yellow.png']},
-          {'word': 'DOCTOR', 'answer': 'assets/images/doctor.png', 'options': ['assets/images/doctor.png', 'assets/images/monkey.png', 'assets/images/table.png', 'assets/images/purple.png']},
+          {'word': 'TIGER', 'answer': 'assets/images/tiger.png', 'options': ['assets/images/tiger.png', 'assets/images/rabbit.png', 'assets/images/monkey.png', 'assets/images/apple.png']},
+          {'word': 'RABBIT', 'answer': 'assets/images/rabbit.png', 'options': ['assets/images/rabbit.png', 'assets/images/frog.png', 'assets/images/chair.png', 'assets/images/flower.png']},
+          {'word': 'MONKEY', 'answer': 'assets/images/monkey.png', 'options': ['assets/images/monkey.png', 'assets/images/zebra.png', 'assets/images/table.png', 'assets/images/water.png']},
+          {'word': 'FROG', 'answer': 'assets/images/frog.png', 'options': ['assets/images/frog.png', 'assets/images/fox.png', 'assets/images/mango.png', 'assets/images/fence.png']},
+          {'word': 'ZEBRA', 'answer': 'assets/images/zebra.png', 'options': ['assets/images/zebra.png', 'assets/images/lion.png', 'assets/images/tiger.png', 'assets/images/apple.png']},
+          {'word': 'FOX', 'answer': 'assets/images/fox.png', 'options': ['assets/images/fox.png', 'assets/images/rabbit.png', 'assets/images/chair.png', 'assets/images/water.png']},
+          {'word': 'LION', 'answer': 'assets/images/lion.png', 'options': ['assets/images/lion.png', 'assets/images/monkey.png', 'assets/images/mango.png', 'assets/images/flower.png']},
+          {'word': 'APPLE', 'answer': 'assets/images/apple.png', 'options': ['assets/images/apple.png', 'assets/images/water.png', 'assets/images/mango.png', 'assets/images/frog.png']},
+          {'word': 'CHAIR', 'answer': 'assets/images/chair.png', 'options': ['assets/images/chair.png', 'assets/images/table.png', 'assets/images/fence.png', 'assets/images/zebra.png']},
+          {'word': 'TABLE', 'answer': 'assets/images/table.png', 'options': ['assets/images/table.png', 'assets/images/chair.png', 'assets/images/water.png', 'assets/images/fox.png']},
+          {'word': 'WATER', 'answer': 'assets/images/water.png', 'options': ['assets/images/water.png', 'assets/images/apple.png', 'assets/images/flower.png', 'assets/images/lion.png']},
+          {'word': 'MANGO', 'answer': 'assets/images/mango.png', 'options': ['assets/images/mango.png', 'assets/images/apple.png', 'assets/images/table.png', 'assets/images/tiger.png']},
+          {'word': 'FENCE', 'answer': 'assets/images/fence.png', 'options': ['assets/images/fence.png', 'assets/images/chair.png', 'assets/images/flower.png', 'assets/images/rabbit.png']},
+          {'word': 'FLOWER', 'answer': 'assets/images/flower.png', 'options': ['assets/images/flower.png', 'assets/images/water.png', 'assets/images/mango.png', 'assets/images/monkey.png']},
         ];
       case '6-7':
       default:
         return [
-          {'word': 'TIGER', 'answer': 'assets/images/tiger.png', 'options': ['assets/images/tiger.png', 'assets/images/giraffe.png', 'assets/images/zebra.png', 'assets/images/teacher.png']},
-          {'word': 'GIRAFFE', 'answer': 'assets/images/giraffe.png', 'options': ['assets/images/giraffe.png', 'assets/images/pilot.png', 'assets/images/nurse.png', 'assets/images/window.png']},
-          {'word': 'ZEBRA', 'answer': 'assets/images/zebra.png', 'options': ['assets/images/zebra.png', 'assets/images/bottle.png', 'assets/images/orange.png', 'assets/images/rubber.png']},
-          {'word': 'TEACHER', 'answer': 'assets/images/teacher.png', 'options': ['assets/images/teacher.png', 'assets/images/tiger.png', 'assets/images/giraffe.png', 'assets/images/pilot.png']},
-          {'word': 'PILOT', 'answer': 'assets/images/pilot.png', 'options': ['assets/images/pilot.png', 'assets/images/nurse.png', 'assets/images/zebra.png', 'assets/images/bottle.png']},
-          {'word': 'NURSE', 'answer': 'assets/images/nurse.png', 'options': ['assets/images/nurse.png', 'assets/images/window.png', 'assets/images/orange.png', 'assets/images/rubber.png']},
-          {'word': 'WINDOW', 'answer': 'assets/images/window.png', 'options': ['assets/images/window.png', 'assets/images/tiger.png', 'assets/images/teacher.png', 'assets/images/pilot.png']},
-          {'word': 'BOTTLE', 'answer': 'assets/images/bottle.png', 'options': ['assets/images/bottle.png', 'assets/images/giraffe.png', 'assets/images/nurse.png', 'assets/images/orange.png']},
-          {'word': 'ORANGE', 'answer': 'assets/images/orange.png', 'options': ['assets/images/orange.png', 'assets/images/zebra.png', 'assets/images/window.png', 'assets/images/rubber.png']},
-          {'word': 'RUBBER', 'answer': 'assets/images/rubber.png', 'options': ['assets/images/rubber.png', 'assets/images/teacher.png', 'assets/images/pilot.png', 'assets/images/bottle.png']},
+          {'word': 'ELEPHANT', 'answer': 'assets/images/elephant.png', 'options': ['assets/images/elephant.png', 'assets/images/giraffe.png', 'assets/images/kangaroo.png', 'assets/images/umbrella.png']},
+          {'word': 'GIRAFFE', 'answer': 'assets/images/giraffe.png', 'options': ['assets/images/giraffe.png', 'assets/images/parrot.png', 'assets/images/teacher.png', 'assets/images/pencil.png']},
+          {'word': 'KANGAROO', 'answer': 'assets/images/kangaroo.png', 'options': ['assets/images/kangaroo.png', 'assets/images/donkey.png', 'assets/images/elephant.png', 'assets/images/umbrella.png']},
+          {'word': 'PARROT', 'answer': 'assets/images/parrot.png', 'options': ['assets/images/parrot.png', 'assets/images/lizard.png', 'assets/images/giraffe.png', 'assets/images/teacher.png']},
+          {'word': 'DONKEY', 'answer': 'assets/images/donkey.png', 'options': ['assets/images/donkey.png', 'assets/images/dinosaur.png', 'assets/images/kangaroo.png', 'assets/images/pencil.png']},
+          {'word': 'LIZARD', 'answer': 'assets/images/lizard.png', 'options': ['assets/images/lizard.png', 'assets/images/parrot.png', 'assets/images/dinosaur.png', 'assets/images/umbrella.png']},
+          {'word': 'DINOSAUR', 'answer': 'assets/images/dinosaur.png', 'options': ['assets/images/dinosaur.png', 'assets/images/elephant.png', 'assets/images/donkey.png', 'assets/images/teacher.png']},
+          {'word': 'UMBRELLA', 'answer': 'assets/images/umbrella.png', 'options': ['assets/images/umbrella.png', 'assets/images/pencil.png', 'assets/images/giraffe.png', 'assets/images/lizard.png']},
+          {'word': 'TEACHER', 'answer': 'assets/images/teacher.png', 'options': ['assets/images/teacher.png', 'assets/images/umbrella.png', 'assets/images/kangaroo.png', 'assets/images/dinosaur.png']},
+          {'word': 'PENCIL', 'answer': 'assets/images/pencil.png', 'options': ['assets/images/pencil.png', 'assets/images/teacher.png', 'assets/images/elephant.png', 'assets/images/parrot.png']},
         ];
     }
   }
-
   @override
   void initState() {
     super.initState();

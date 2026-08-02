@@ -24,51 +24,56 @@ class _SpeakingGameScreenState extends State<SpeakingGameScreen> {
   bool? isCorrect;
 
   // 1. 题库替换：加入你电脑里的真实图片素材，分年龄段，每段 10 题
-  List<Map<String, dynamic>> get questions {
+List<Map<String, dynamic>> get questions {
     switch (widget.ageGroup) {
       case '4-5':
         return [
           {'word': 'Cat', 'image': 'assets/images/cat.png'},
           {'word': 'Dog', 'image': 'assets/images/dog.png'},
+          {'word': 'Cow', 'image': 'assets/images/cow.png'},
+          {'word': 'Pig', 'image': 'assets/images/pig.png'},
+          {'word': 'Fish', 'image': 'assets/images/fish.png'},
+          {'word': 'Bird', 'image': 'assets/images/bird.png'},
           {'word': 'Sun', 'image': 'assets/images/sun.png'},
           {'word': 'Hat', 'image': 'assets/images/hat.png'},
-          {'word': 'Fish', 'image': 'assets/images/fish.png'},
-          {'word': 'Pig', 'image': 'assets/images/pig.png'},
-          {'word': 'Cow', 'image': 'assets/images/cow.png'},
-          {'word': 'Bird', 'image': 'assets/images/bird.png'},
-          {'word': 'Frog', 'image': 'assets/images/frog.png'},
-          {'word': 'Lion', 'image': 'assets/images/lion.png'},
+          {'word': 'Ant', 'image': 'assets/images/ant.png'},
+          {'word': 'Tree', 'image': 'assets/images/tree.png'},
+          {'word': 'Grass', 'image': 'assets/images/grass.png'},
+          {'word': 'Rock', 'image': 'assets/images/rock.png'},
         ];
       case '5-6':
         return [
-          {'word': 'Apple', 'image': 'assets/images/apple.png'},
+          {'word': 'Tiger', 'image': 'assets/images/tiger.png'},
           {'word': 'Rabbit', 'image': 'assets/images/rabbit.png'},
-          {'word': 'Yellow', 'image': 'assets/images/yellow.png'},
+          {'word': 'Monkey', 'image': 'assets/images/monkey.png'},
+          {'word': 'Frog', 'image': 'assets/images/frog.png'},
+          {'word': 'Zebra', 'image': 'assets/images/zebra.png'},
+          {'word': 'Fox', 'image': 'assets/images/fox.png'},
+          {'word': 'Lion', 'image': 'assets/images/lion.png'},
+          {'word': 'Apple', 'image': 'assets/images/apple.png'},
+          {'word': 'Chair', 'image': 'assets/images/chair.png'},
           {'word': 'Table', 'image': 'assets/images/table.png'},
           {'word': 'Water', 'image': 'assets/images/water.png'},
-          {'word': 'Banana', 'image': 'assets/images/banana.png'},
-          {'word': 'Monkey', 'image': 'assets/images/monkey.png'},
-          {'word': 'Purple', 'image': 'assets/images/purple.png'},
-          {'word': 'Pencil', 'image': 'assets/images/pencil.png'},
-          {'word': 'Doctor', 'image': 'assets/images/doctor.png'},
+          {'word': 'Mango', 'image': 'assets/images/mango.png'},
+          {'word': 'Fence', 'image': 'assets/images/fence.png'},
+          {'word': 'Flower', 'image': 'assets/images/flower.png'},
         ];
       case '6-7':
       default:
         return [
-          {'word': 'Tiger', 'image': 'assets/images/tiger.png'},
+          {'word': 'Elephant', 'image': 'assets/images/elephant.png'},
           {'word': 'Giraffe', 'image': 'assets/images/giraffe.png'},
-          {'word': 'Zebra', 'image': 'assets/images/zebra.png'},
+          {'word': 'Kangaroo', 'image': 'assets/images/kangaroo.png'},
+          {'word': 'Parrot', 'image': 'assets/images/parrot.png'},
+          {'word': 'Donkey', 'image': 'assets/images/donkey.png'},
+          {'word': 'Lizard', 'image': 'assets/images/lizard.png'},
+          {'word': 'Dinosaur', 'image': 'assets/images/dinosaur.png'},
+          {'word': 'Umbrella', 'image': 'assets/images/umbrella.png'},
           {'word': 'Teacher', 'image': 'assets/images/teacher.png'},
-          {'word': 'Pilot', 'image': 'assets/images/pilot.png'},
-          {'word': 'Nurse', 'image': 'assets/images/nurse.png'},
-          {'word': 'Window', 'image': 'assets/images/window.png'},
-          {'word': 'Bottle', 'image': 'assets/images/bottle.png'},
-          {'word': 'Orange', 'image': 'assets/images/orange.png'},
-          {'word': 'Rubber', 'image': 'assets/images/rubber.png'},
+          {'word': 'Pencil', 'image': 'assets/images/pencil.png'},
         ];
     }
   }
-
   @override
   void initState() {
     super.initState();

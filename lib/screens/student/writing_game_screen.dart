@@ -30,34 +30,57 @@ class _WritingGameScreenState extends State<WritingGameScreen> {
   }
 
   // 5-7: simple words with a picture for context
-  List<Map<String, String>> _generateWords(String age) {
+List<Map<String, String>> _generateWords(String age) {
     switch (age) {
-      case '5-6':
+      case '4-5':
         return [
           {'word': 'CAT', 'image': 'assets/images/cat.png'},
           {'word': 'DOG', 'image': 'assets/images/dog.png'},
+          {'word': 'COW', 'image': 'assets/images/cow.png'},
+          {'word': 'PIG', 'image': 'assets/images/pig.png'},
+          {'word': 'FISH', 'image': 'assets/images/fish.png'},
+          {'word': 'BIRD', 'image': 'assets/images/bird.png'},
           {'word': 'SUN', 'image': 'assets/images/sun.png'},
           {'word': 'HAT', 'image': 'assets/images/hat.png'},
-          {'word': 'PIG', 'image': 'assets/images/pig.png'},
-          {'word': 'COW', 'image': 'assets/images/cow.png'},
-          {'word': 'BIRD', 'image': 'assets/images/bird.png'},
+          {'word': 'ANT', 'image': 'assets/images/ant.png'},
+          {'word': 'TREE', 'image': 'assets/images/tree.png'},
+          {'word': 'GRASS', 'image': 'assets/images/grass.png'},
+          {'word': 'ROCK', 'image': 'assets/images/rock.png'},
+        ];
+      case '5-6':
+        return [
+          {'word': 'TIGER', 'image': 'assets/images/tiger.png'},
+          {'word': 'RABBIT', 'image': 'assets/images/rabbit.png'},
+          {'word': 'MONKEY', 'image': 'assets/images/monkey.png'},
           {'word': 'FROG', 'image': 'assets/images/frog.png'},
+          {'word': 'ZEBRA', 'image': 'assets/images/zebra.png'},
+          {'word': 'FOX', 'image': 'assets/images/fox.png'},
+          {'word': 'LION', 'image': 'assets/images/lion.png'},
+          {'word': 'APPLE', 'image': 'assets/images/apple.png'},
+          {'word': 'CHAIR', 'image': 'assets/images/chair.png'},
+          {'word': 'TABLE', 'image': 'assets/images/table.png'},
+          {'word': 'WATER', 'image': 'assets/images/water.png'},
+          {'word': 'MANGO', 'image': 'assets/images/mango.png'},
+          {'word': 'FENCE', 'image': 'assets/images/fence.png'},
+          {'word': 'FLOWER', 'image': 'assets/images/flower.png'},
         ];
       case '6-7':
       default:
         return [
-          {'word': 'APPLE', 'image': 'assets/images/apple.png'},
-          {'word': 'RABBIT', 'image': 'assets/images/rabbit.png'},
-          {'word': 'TABLE', 'image': 'assets/images/table.png'},
-          {'word': 'WATER', 'image': 'assets/images/water.png'},
-          {'word': 'BANANA', 'image': 'assets/images/banana.png'},
-          {'word': 'MONKEY', 'image': 'assets/images/monkey.png'},
+          {'word': 'ELEPHANT', 'image': 'assets/images/elephant.png'},
+          {'word': 'GIRAFFE', 'image': 'assets/images/giraffe.png'},
+          {'word': 'KANGAROO', 'image': 'assets/images/kangaroo.png'},
+          {'word': 'PARROT', 'image': 'assets/images/parrot.png'},
+          {'word': 'DONKEY', 'image': 'assets/images/donkey.png'},
+          {'word': 'LIZARD', 'image': 'assets/images/lizard.png'},
+          {'word': 'DINOSAUR', 'image': 'assets/images/dinosaur.png'},
+          {'word': 'UMBRELLA', 'image': 'assets/images/umbrella.png'},
+          {'word': 'TEACHER', 'image': 'assets/images/teacher.png'},
           {'word': 'PENCIL', 'image': 'assets/images/pencil.png'},
-          {'word': 'FLOWER', 'image': 'assets/images/flower.png'},
         ];
     }
   }
-
+  
   @override
   void initState() {
     super.initState();

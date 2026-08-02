@@ -17,6 +17,10 @@ class LessonWord {
   final bool isMovable;  // true = wanders the grid on its own once placed
   final bool isPassable; // true = other movers can walk straight through it;
                           // false = solid obstacle that blocks movement
+  
+  // ✨ 新增：地图网格尺寸
+  final int? width;
+  final int? height;
 
   LessonWord({
     required this.word,
@@ -27,6 +31,9 @@ class LessonWord {
     this.positionY,
     this.isMovable = false,
     this.isPassable = true,
+    // ✨ 新增：加到构造函数中
+    this.width,
+    this.height,
   });
 
   Map<String, dynamic> toMap() => {
@@ -38,25 +45,25 @@ class LessonWord {
         'positionY': positionY,
         'isMovable': isMovable,
         'isPassable': isPassable,
+        // ✨ 新增：保存到数据库时带上尺寸
+        'width': width,
+        'height': height,
       };
 
-  factory LessonWord.fromMap(Map<String, dynamic> map) => LessonWord(
+factory LessonWord.fromMap(Map<String, dynamic> map) => LessonWord(
         word: map['word'] ?? '',
         imageAsset: map['imageAsset'] ?? '',
         emoji: map['emoji'] as String?,
         difficulty: (map['difficulty'] as num?)?.toInt() ?? 1,
         positionX: (map['positionX'] as num?)?.toDouble(),
         positionY: (map['positionY'] as num?)?.toDouble(),
-        // Defaults matter here for backward compatibility: any word saved
-        // by teachers BEFORE this field existed reads back as isMovable:
-        // false, isPassable: true — i.e. a normal, harmless, non-blocking
-        // decorative item. Nothing already in the database silently
-        // becomes an obstacle.
         isMovable: map['isMovable'] as bool? ?? false,
         isPassable: map['isPassable'] as bool? ?? true,
+        // ✨ 修改这里：同样增强安全性
+        width: map['width'] != null ? int.tryParse(map['width'].toString()) : null,
+        height: map['height'] != null ? int.tryParse(map['height'].toString()) : null,
       );
 }
-
 /// A teacher-created lesson: a small set of words the student should be
 /// taught (flashcard-style) before attempting the matching quiz.
 class Lesson {

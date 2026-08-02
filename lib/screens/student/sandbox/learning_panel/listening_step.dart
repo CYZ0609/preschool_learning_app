@@ -53,8 +53,8 @@ class _ListeningStepState extends State<ListeningStep> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         SizedBox(
-          width: 120,
-          height: 120,
+          width: 300,
+          height: 300,
           child: WordImage(imageAsset: widget.imageAsset),
         ),
         const SizedBox(height: 20),
@@ -68,8 +68,8 @@ class _ListeningStepState extends State<ListeningStep> {
             duration: const Duration(milliseconds: 120),
             curve: Curves.easeOut,
             child: Container(
-              width: 180,
-              height: 180,
+              width: 150,
+              height: 150,
               decoration: BoxDecoration(
                 color: const Color(0xFFFFAB40),
                 shape: BoxShape.circle,

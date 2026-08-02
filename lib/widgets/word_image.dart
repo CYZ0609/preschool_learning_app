@@ -11,12 +11,18 @@ class WordImage extends StatelessWidget {
   final String imageAsset;
   final BoxFit fit;
   final Widget? errorWidget;
+  final double? width;
+  final double? height;
+  final double scale;
 
   const WordImage({
     super.key,
     required this.imageAsset,
     this.fit = BoxFit.contain,
     this.errorWidget,
+    this.width,
+    this.height,
+    this.scale = 1.0,
   });
 
   bool get _isNetwork => imageAsset.startsWith('http://') || imageAsset.startsWith('https://');
@@ -25,9 +31,13 @@ class WordImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final fallback = errorWidget ?? const Icon(Icons.emoji_nature_rounded, color: Colors.white70);
 
+    Widget imageWidget;
+
     if (_isNetwork) {
-      return Image.network(
+      imageWidget = Image.network(
         imageAsset,
+        width: width,
+        height: height,
         fit: fit,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child; // fully loaded
@@ -41,12 +51,20 @@ class WordImage extends StatelessWidget {
         },
         errorBuilder: (_, __, ___) => fallback,
       );
+    } else {
+      imageWidget = Image.asset(
+        imageAsset,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (_, __, ___) => fallback,
+      );
     }
 
-    return Image.asset(
-      imageAsset,
-      fit: fit,
-      errorBuilder: (_, __, ___) => fallback,
+    // 这里将最终的图片组件用 Transform.scale 包裹起来，实现等比例缩放
+    return Transform.scale(
+      scale: scale,
+      child: imageWidget,
     );
   }
 }

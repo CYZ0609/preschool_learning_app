@@ -49,24 +49,130 @@ class ViewItemsScreen extends StatelessWidget {
     }
   }
 
-  // 智能识别图片类型的函数：自动判断是网络图片还是本地图片
+  // ✨ 新增：编辑物品的弹窗逻辑
+  Future<void> _showEditDialog(BuildContext context, String docId, Map<String, dynamic> currentData) async {
+    // 初始化控制器并填入现有数据
+    final TextEditingController widthCtrl = TextEditingController(text: currentData['width']?.toString() ?? '1');
+    final TextEditingController heightCtrl = TextEditingController(text: currentData['height']?.toString() ?? '1');
+    final TextEditingController imageUrlCtrl = TextEditingController(text: currentData['imageUrl'] ?? '');
+    
+    bool isSolid = currentData['isSolid'] ?? false;
+    bool isMovable = currentData['isMovable'] ?? false;
+    final String itemName = currentData['itemId'] ?? 'UNKNOWN';
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        // 使用 StatefulBuilder 可以在弹窗内更新 Switch 的状态
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Edit "$itemName"'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: imageUrlCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Image Path / URL',
+                        hintText: 'e.g., assets/images/cow.png',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: widthCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Width (Size X)'),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextField(
+                            controller: heightCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(labelText: 'Height (Size Y)'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SwitchListTile(
+                      title: const Text('Is Solid', style: TextStyle(fontSize: 14)),
+                      subtitle: const Text('Blocks movement (e.g., trees)', style: TextStyle(fontSize: 12)),
+                      value: isSolid,
+                      activeColor: Colors.orange,
+                      onChanged: (val) => setState(() => isSolid = val),
+                    ),
+                    SwitchListTile(
+                      title: const Text('Is Movable', style: TextStyle(fontSize: 14)),
+                      subtitle: const Text('Wanders around (e.g., animals)', style: TextStyle(fontSize: 12)),
+                      value: isMovable,
+                      activeColor: Colors.blue,
+                      onChanged: (val) => setState(() => isMovable = val),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      // 将修改保存回 Firebase
+                      await FirebaseFirestore.instance.collection('sandbox_items').doc(docId).update({
+                        'imageUrl': imageUrlCtrl.text.trim(),
+                        'width': int.tryParse(widthCtrl.text) ?? 1,
+                        'height': int.tryParse(heightCtrl.text) ?? 1,
+                        'isSolid': isSolid,
+                        'isMovable': isMovable,
+                      });
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('$itemName updated successfully!'), backgroundColor: Colors.green),
+                        );
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error updating: $e'), backgroundColor: Colors.red),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4DD9C0)),
+                  child: const Text('SAVE'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 智能识别图片类型的函数
   Widget _buildImage(String imageUrl, String itemName) {
     if (imageUrl.startsWith('http')) {
-      // 1. 如果是 Firebase 传回来的网络链接
       return Image.network(
         imageUrl,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 50),
       );
     } else if (imageUrl.isNotEmpty) {
-      // 2. 如果是数据库里写好的本地路径 (例如: assets/images/pikachu.png)
       return Image.asset(
         imageUrl,
         fit: BoxFit.contain,
         errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey, size: 50),
       );
     } else {
-      // 3. 如果没图片路径，尝试根据名字去本地找
       return Image.asset(
         'assets/images/${itemName.toLowerCase()}.png',
         fit: BoxFit.contain,
@@ -84,22 +190,8 @@ class ViewItemsScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
-        // === ⚠️ 临时代码：用完请删除 (右上角上传按钮) ⚠️ ===
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.cloud_upload, color: Colors.blue),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('正在批量上传，请查看 VS Code 控制台日志...')),
-              );
-              migrateAllAssetsToFirebase();
-            },
-          )
-        ],
-        // === ⚠️ 临时代码结束 ⚠️ ===
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // 🚨 移除了 .orderBy()，这样就不会漏掉没有 createdAt 字段的预设词了
         stream: FirebaseFirestore.instance.collection('sandbox_items').snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -120,7 +212,7 @@ class ViewItemsScreen extends StatelessWidget {
             );
           }
 
-          // 手动在内存中排序，把有时间的排在前面（新上传的），没时间的（旧预设词）放在后面，保证全部显示
+          // 排序逻辑保持不变
           final items = snapshot.data!.docs.toList();
           items.sort((a, b) {
             final dataA = a.data() as Map<String, dynamic>;
@@ -167,7 +259,6 @@ class ViewItemsScreen extends StatelessWidget {
                           child: Container(
                             color: Colors.white,
                             padding: const EdgeInsets.all(8.0),
-                            // 🚨 使用我们上面写的智能识别图片函数
                             child: _buildImage(imageUrl, name),
                           ),
                         ),
@@ -201,16 +292,32 @@ class ViewItemsScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+                    // ✨ 这里的右上角增加了编辑和删除按钮
                     Positioned(
                       top: 4,
                       right: 4,
-                      child: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () => _deleteItem(context, docId, name),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.8),
-                          padding: const EdgeInsets.all(4),
-                        ),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                            onPressed: () => _showEditDialog(context, docId, data),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.white.withOpacity(0.9),
+                              padding: const EdgeInsets.all(4),
+                              minimumSize: const Size(32, 32),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                            onPressed: () => _deleteItem(context, docId, name),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.white.withOpacity(0.9),
+                              padding: const EdgeInsets.all(4),
+                              minimumSize: const Size(32, 32),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -223,40 +330,3 @@ class ViewItemsScreen extends StatelessWidget {
     );
   }
 }
-
-// === ⚠️ 临时代码：用完请删除 (批量上传逻辑) ⚠️ ===
-Future<void> migrateAllAssetsToFirebase() async {
-  final firestore = FirebaseFirestore.instance;
-  final storage = FirebaseStorage.instance;
-
-  print('🚀 开始批量搬家...');
-
-  for (String itemName in kAvailableAssetImages) {
-    try {
-      final ByteData byteData = await rootBundle.load('assets/images/$itemName.png');
-      final Uint8List imageData = byteData.buffer.asUint8List();
-
-      final storageRef = storage.ref().child('sandbox_items/$itemName.png');
-      await storageRef.putData(imageData, SettableMetadata(contentType: 'image/png'));
-      final String downloadUrl = await storageRef.getDownloadURL();
-
-      final docId = itemName.toUpperCase();
-      // 这里自动使用你系统里原有的字段：itemId, isSolid, isMovable
-      await firestore.collection('sandbox_items').doc(docId).set({
-        'itemId': docId,
-        'imageUrl': downloadUrl,
-        'width': 2,
-        'height': 2,
-        'isSolid': false,
-        'isMovable': true,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      print('✅ 成功搬运: $docId');
-    } catch (e) {
-      print('❌ 搬运失败 $itemName: $e');
-    }
-  }
-  print('🎉 全部搬完啦！');
-}
-// === ⚠️ 临时代码结束 ⚠️ ===

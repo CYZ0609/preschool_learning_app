@@ -87,7 +87,8 @@ class _UniversalLearningPanelState extends State<UniversalLearningPanel> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // 修改这里：设置为带有透明度的背景，以便透出底层的地图
+      backgroundColor: Colors.white.withOpacity(0.8),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -96,12 +97,13 @@ class _UniversalLearningPanelState extends State<UniversalLearningPanel> {
               Row(
                 children: [
                   GestureDetector(
-  onTap: () => Navigator.pop(context, false),
-  child: const Icon(Icons.close_rounded, color: Color(0xFF888888)),
-),
+                    onTap: () => Navigator.pop(context, false),
+                    child: const Icon(Icons.close_rounded, color: Color(0xFF888888)),
+                  ),
                   const Spacer(),
                   SizedBox(
-                    width: 44, height: 44,
+                    width: 0,
+                   height: 0,
                     child: WordImage(imageAsset: widget.word.imageAsset),
                   ),
                   const Spacer(),
