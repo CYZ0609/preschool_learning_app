@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// === ⚠️ 临时代码：用完请删除 (引入包) ⚠️ ===
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'dart:typed_data';
+import '../../data/asset_images.dart'; // 引入本地词汇列表
+// === ⚠️ 临时代码结束 ⚠️ ===
+
 class ViewItemsScreen extends StatelessWidget {
   const ViewItemsScreen({super.key});
 
@@ -77,6 +84,19 @@ class ViewItemsScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
+        // === ⚠️ 临时代码：用完请删除 (右上角上传按钮) ⚠️ ===
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.cloud_upload, color: Colors.blue),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('正在批量上传，请查看 VS Code 控制台日志...')),
+              );
+              migrateAllAssetsToFirebase();
+            },
+          )
+        ],
+        // === ⚠️ 临时代码结束 ⚠️ ===
       ),
       body: StreamBuilder<QuerySnapshot>(
         // 🚨 移除了 .orderBy()，这样就不会漏掉没有 createdAt 字段的预设词了
@@ -203,3 +223,40 @@ class ViewItemsScreen extends StatelessWidget {
     );
   }
 }
+
+// === ⚠️ 临时代码：用完请删除 (批量上传逻辑) ⚠️ ===
+Future<void> migrateAllAssetsToFirebase() async {
+  final firestore = FirebaseFirestore.instance;
+  final storage = FirebaseStorage.instance;
+
+  print('🚀 开始批量搬家...');
+
+  for (String itemName in kAvailableAssetImages) {
+    try {
+      final ByteData byteData = await rootBundle.load('assets/images/$itemName.png');
+      final Uint8List imageData = byteData.buffer.asUint8List();
+
+      final storageRef = storage.ref().child('sandbox_items/$itemName.png');
+      await storageRef.putData(imageData, SettableMetadata(contentType: 'image/png'));
+      final String downloadUrl = await storageRef.getDownloadURL();
+
+      final docId = itemName.toUpperCase();
+      // 这里自动使用你系统里原有的字段：itemId, isSolid, isMovable
+      await firestore.collection('sandbox_items').doc(docId).set({
+        'itemId': docId,
+        'imageUrl': downloadUrl,
+        'width': 2,
+        'height': 2,
+        'isSolid': false,
+        'isMovable': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      print('✅ 成功搬运: $docId');
+    } catch (e) {
+      print('❌ 搬运失败 $itemName: $e');
+    }
+  }
+  print('🎉 全部搬完啦！');
+}
+// === ⚠️ 临时代码结束 ⚠️ ===
