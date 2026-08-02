@@ -124,7 +124,7 @@ class _FlameWorldMapScreenState extends State<FlameWorldMapScreen> {
                             child: Container(
                               decoration:  BoxDecoration(
                                 // ✨ 这里改成了完全透明，且没有边框Colors.transparent ✨
-                                color: Colors.red.withOpacity(0.4),
+                                color: Colors.transparent,
                               ),
                             ),
                           ),

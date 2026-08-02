@@ -182,9 +182,15 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
     // font metrics (which include invisible ascent/descent padding).
     final drawnW = maxX - minX;
     final drawnH = maxY - minY;
+    
     final wRatio = inkWidth > 0 ? (drawnW / inkWidth).clamp(0.0, 3.0) : 1.0;
     final hRatio = inkHeight > 0 ? (drawnH / inkHeight).clamp(0.0, 3.0) : 1.0;
-    if (wRatio < 0.35 || hRatio < 0.35) {
+    
+    // ======== FIX 1: 动态阈值判定，针对窄字母降低宽度要求 ========
+    final isNarrowLetter = ['I', 'L', 'J', 'T', 'i', 'l', 'j', 't'].contains(letter);
+    final double minWRatio = isNarrowLetter ? 0.10 : 0.35;
+
+    if (wRatio < minWRatio || hRatio < 0.35) {
       return {
         'pass': false,
         'reason': 'too small/cramped',
@@ -192,6 +198,7 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
         'hRatio': hRatio.toStringAsFixed(2),
       };
     }
+    // ==============================================================
 
     int targetCount = 0, drawnCount = 0;
     int coverageHits = 0;  // raw target cells reached by (dilated) drawing
@@ -350,12 +357,15 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                     }),
                   ),
                   const SizedBox(height: 24),
-                  // Word display
+                  
+                  // ======== FIX 2: 单词过长导致溢出，使用 Wrap 替换 Row ========
                   Center(
                     child: GestureDetector(
                       onTap: _speakWord,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        runSpacing: 8.0, 
                         children: [
                           ...List.generate(widget.word.length, (i) {
                             return Container(
@@ -387,6 +397,8 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                       ),
                     ),
                   ),
+                  // ==============================================================
+                  
                   const SizedBox(height: 16),
                   Center(
                     child: Text(
