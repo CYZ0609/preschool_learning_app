@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../../services/progress_service.dart';
+import '../../../services/sandbox_item_service.dart';
+import '../../../data/default_map_words.dart';
+import '../../../widgets/word_image.dart';
 
 class ListeningGameScreen extends StatefulWidget {
   final String ageGroup;
@@ -23,56 +26,10 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
 
   final FlutterTts tts = FlutterTts();
 
- List<Map<String, dynamic>> get questions {
-    switch (widget.ageGroup) {
-      case '4-5':
-        return [
-          {'question': 'What do you hear?', 'audio': 'cat', 'options': [{'text': 'Cat', 'image': 'assets/images/cat.png'}, {'text': 'Dog', 'image': 'assets/images/dog.png'}, {'text': 'Sun', 'image': 'assets/images/sun.png'}, {'text': 'Tree', 'image': 'assets/images/tree.png'}], 'answer': 'Cat'},
-          {'question': 'What do you hear?', 'audio': 'dog', 'options': [{'text': 'Dog', 'image': 'assets/images/dog.png'}, {'text': 'Cow', 'image': 'assets/images/cow.png'}, {'text': 'Hat', 'image': 'assets/images/hat.png'}, {'text': 'Grass', 'image': 'assets/images/grass.png'}], 'answer': 'Dog'},
-          {'question': 'What do you hear?', 'audio': 'cow', 'options': [{'text': 'Cow', 'image': 'assets/images/cow.png'}, {'text': 'Pig', 'image': 'assets/images/pig.png'}, {'text': 'Bird', 'image': 'assets/images/bird.png'}, {'text': 'Ant', 'image': 'assets/images/ant.png'}], 'answer': 'Cow'},
-          {'question': 'What do you hear?', 'audio': 'pig', 'options': [{'text': 'Pig', 'image': 'assets/images/pig.png'}, {'text': 'Fish', 'image': 'assets/images/fish.png'}, {'text': 'Tree', 'image': 'assets/images/tree.png'}, {'text': 'Rock', 'image': 'assets/images/rock.png'}], 'answer': 'Pig'},
-          {'question': 'What do you hear?', 'audio': 'fish', 'options': [{'text': 'Fish', 'image': 'assets/images/fish.png'}, {'text': 'Bird', 'image': 'assets/images/bird.png'}, {'text': 'Cat', 'image': 'assets/images/cat.png'}, {'text': 'Hat', 'image': 'assets/images/hat.png'}], 'answer': 'Fish'},
-          {'question': 'What do you hear?', 'audio': 'bird', 'options': [{'text': 'Bird', 'image': 'assets/images/bird.png'}, {'text': 'Sun', 'image': 'assets/images/sun.png'}, {'text': 'Ant', 'image': 'assets/images/ant.png'}, {'text': 'Dog', 'image': 'assets/images/dog.png'}], 'answer': 'Bird'},
-          {'question': 'What do you hear?', 'audio': 'sun', 'options': [{'text': 'Sun', 'image': 'assets/images/sun.png'}, {'text': 'Hat', 'image': 'assets/images/hat.png'}, {'text': 'Grass', 'image': 'assets/images/grass.png'}, {'text': 'Cow', 'image': 'assets/images/cow.png'}], 'answer': 'Sun'},
-          {'question': 'What do you hear?', 'audio': 'hat', 'options': [{'text': 'Hat', 'image': 'assets/images/hat.png'}, {'text': 'Tree', 'image': 'assets/images/tree.png'}, {'text': 'Rock', 'image': 'assets/images/rock.png'}, {'text': 'Pig', 'image': 'assets/images/pig.png'}], 'answer': 'Hat'},
-          {'question': 'What do you hear?', 'audio': 'ant', 'options': [{'text': 'Ant', 'image': 'assets/images/ant.png'}, {'text': 'Rock', 'image': 'assets/images/rock.png'}, {'text': 'Cat', 'image': 'assets/images/cat.png'}, {'text': 'Fish', 'image': 'assets/images/fish.png'}], 'answer': 'Ant'},
-          {'question': 'What do you hear?', 'audio': 'tree', 'options': [{'text': 'Tree', 'image': 'assets/images/tree.png'}, {'text': 'Grass', 'image': 'assets/images/grass.png'}, {'text': 'Dog', 'image': 'assets/images/dog.png'}, {'text': 'Bird', 'image': 'assets/images/bird.png'}], 'answer': 'Tree'},
-          {'question': 'What do you hear?', 'audio': 'grass', 'options': [{'text': 'Grass', 'image': 'assets/images/grass.png'}, {'text': 'Rock', 'image': 'assets/images/rock.png'}, {'text': 'Sun', 'image': 'assets/images/sun.png'}, {'text': 'Pig', 'image': 'assets/images/pig.png'}], 'answer': 'Grass'},
-          {'question': 'What do you hear?', 'audio': 'rock', 'options': [{'text': 'Rock', 'image': 'assets/images/rock.png'}, {'text': 'Cat', 'image': 'assets/images/cat.png'}, {'text': 'Hat', 'image': 'assets/images/hat.png'}, {'text': 'Cow', 'image': 'assets/images/cow.png'}], 'answer': 'Rock'},
-        ];
-      case '5-6':
-        return [
-          {'question': 'What do you hear?', 'audio': 'tiger', 'options': [{'text': 'Tiger', 'image': 'assets/images/tiger.png'}, {'text': 'Rabbit', 'image': 'assets/images/rabbit.png'}, {'text': 'Monkey', 'image': 'assets/images/monkey.png'}, {'text': 'Apple', 'image': 'assets/images/apple.png'}], 'answer': 'Tiger'},
-          {'question': 'What do you hear?', 'audio': 'rabbit', 'options': [{'text': 'Rabbit', 'image': 'assets/images/rabbit.png'}, {'text': 'Frog', 'image': 'assets/images/frog.png'}, {'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Flower', 'image': 'assets/images/flower.png'}], 'answer': 'Rabbit'},
-          {'question': 'What do you hear?', 'audio': 'monkey', 'options': [{'text': 'Monkey', 'image': 'assets/images/monkey.png'}, {'text': 'Zebra', 'image': 'assets/images/zebra.png'}, {'text': 'Table', 'image': 'assets/images/table.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}], 'answer': 'Monkey'},
-          {'question': 'What do you hear?', 'audio': 'frog', 'options': [{'text': 'Frog', 'image': 'assets/images/frog.png'}, {'text': 'Fox', 'image': 'assets/images/fox.png'}, {'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Fence', 'image': 'assets/images/fence.png'}], 'answer': 'Frog'},
-          {'question': 'What do you hear?', 'audio': 'zebra', 'options': [{'text': 'Zebra', 'image': 'assets/images/zebra.png'}, {'text': 'Lion', 'image': 'assets/images/lion.png'}, {'text': 'Tiger', 'image': 'assets/images/tiger.png'}, {'text': 'Apple', 'image': 'assets/images/apple.png'}], 'answer': 'Zebra'},
-          {'question': 'What do you hear?', 'audio': 'fox', 'options': [{'text': 'Fox', 'image': 'assets/images/fox.png'}, {'text': 'Rabbit', 'image': 'assets/images/rabbit.png'}, {'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}], 'answer': 'Fox'},
-          {'question': 'What do you hear?', 'audio': 'lion', 'options': [{'text': 'Lion', 'image': 'assets/images/lion.png'}, {'text': 'Monkey', 'image': 'assets/images/monkey.png'}, {'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Flower', 'image': 'assets/images/flower.png'}], 'answer': 'Lion'},
-          {'question': 'What do you hear?', 'audio': 'apple', 'options': [{'text': 'Apple', 'image': 'assets/images/apple.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}, {'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Frog', 'image': 'assets/images/frog.png'}], 'answer': 'Apple'},
-          {'question': 'What do you hear?', 'audio': 'chair', 'options': [{'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Table', 'image': 'assets/images/table.png'}, {'text': 'Fence', 'image': 'assets/images/fence.png'}, {'text': 'Zebra', 'image': 'assets/images/zebra.png'}], 'answer': 'Chair'},
-          {'question': 'What do you hear?', 'audio': 'table', 'options': [{'text': 'Table', 'image': 'assets/images/table.png'}, {'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}, {'text': 'Fox', 'image': 'assets/images/fox.png'}], 'answer': 'Table'},
-          {'question': 'What do you hear?', 'audio': 'water', 'options': [{'text': 'Water', 'image': 'assets/images/water.png'}, {'text': 'Apple', 'image': 'assets/images/apple.png'}, {'text': 'Flower', 'image': 'assets/images/flower.png'}, {'text': 'Lion', 'image': 'assets/images/lion.png'}], 'answer': 'Water'},
-          {'question': 'What do you hear?', 'audio': 'mango', 'options': [{'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Apple', 'image': 'assets/images/apple.png'}, {'text': 'Table', 'image': 'assets/images/table.png'}, {'text': 'Tiger', 'image': 'assets/images/tiger.png'}], 'answer': 'Mango'},
-          {'question': 'What do you hear?', 'audio': 'fence', 'options': [{'text': 'Fence', 'image': 'assets/images/fence.png'}, {'text': 'Chair', 'image': 'assets/images/chair.png'}, {'text': 'Flower', 'image': 'assets/images/flower.png'}, {'text': 'Rabbit', 'image': 'assets/images/rabbit.png'}], 'answer': 'Fence'},
-          {'question': 'What do you hear?', 'audio': 'flower', 'options': [{'text': 'Flower', 'image': 'assets/images/flower.png'}, {'text': 'Water', 'image': 'assets/images/water.png'}, {'text': 'Mango', 'image': 'assets/images/mango.png'}, {'text': 'Monkey', 'image': 'assets/images/monkey.png'}], 'answer': 'Flower'},
-        ];
-      case '6-7':
-      default:
-        return [
-          {'question': 'What do you hear?', 'audio': 'elephant', 'options': [{'text': 'Elephant', 'image': 'assets/images/elephant.png'}, {'text': 'Giraffe', 'image': 'assets/images/giraffe.png'}, {'text': 'Kangaroo', 'image': 'assets/images/kangaroo.png'}, {'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}], 'answer': 'Elephant'},
-          {'question': 'What do you hear?', 'audio': 'giraffe', 'options': [{'text': 'Giraffe', 'image': 'assets/images/giraffe.png'}, {'text': 'Parrot', 'image': 'assets/images/parrot.png'}, {'text': 'Teacher', 'image': 'assets/images/teacher.png'}, {'text': 'Pencil', 'image': 'assets/images/pencil.png'}], 'answer': 'Giraffe'},
-          {'question': 'What do you hear?', 'audio': 'kangaroo', 'options': [{'text': 'Kangaroo', 'image': 'assets/images/kangaroo.png'}, {'text': 'Donkey', 'image': 'assets/images/donkey.png'}, {'text': 'Elephant', 'image': 'assets/images/elephant.png'}, {'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}], 'answer': 'Kangaroo'},
-          {'question': 'What do you hear?', 'audio': 'parrot', 'options': [{'text': 'Parrot', 'image': 'assets/images/parrot.png'}, {'text': 'Lizard', 'image': 'assets/images/lizard.png'}, {'text': 'Giraffe', 'image': 'assets/images/giraffe.png'}, {'text': 'Teacher', 'image': 'assets/images/teacher.png'}], 'answer': 'Parrot'},
-          {'question': 'What do you hear?', 'audio': 'donkey', 'options': [{'text': 'Donkey', 'image': 'assets/images/donkey.png'}, {'text': 'Dinosaur', 'image': 'assets/images/dinosaur.png'}, {'text': 'Kangaroo', 'image': 'assets/images/kangaroo.png'}, {'text': 'Pencil', 'image': 'assets/images/pencil.png'}], 'answer': 'Donkey'},
-          {'question': 'What do you hear?', 'audio': 'lizard', 'options': [{'text': 'Lizard', 'image': 'assets/images/lizard.png'}, {'text': 'Parrot', 'image': 'assets/images/parrot.png'}, {'text': 'Dinosaur', 'image': 'assets/images/dinosaur.png'}, {'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}], 'answer': 'Lizard'},
-          {'question': 'What do you hear?', 'audio': 'dinosaur', 'options': [{'text': 'Dinosaur', 'image': 'assets/images/dinosaur.png'}, {'text': 'Elephant', 'image': 'assets/images/elephant.png'}, {'text': 'Donkey', 'image': 'assets/images/donkey.png'}, {'text': 'Teacher', 'image': 'assets/images/teacher.png'}], 'answer': 'Dinosaur'},
-          {'question': 'What do you hear?', 'audio': 'umbrella', 'options': [{'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}, {'text': 'Pencil', 'image': 'assets/images/pencil.png'}, {'text': 'Giraffe', 'image': 'assets/images/giraffe.png'}, {'text': 'Lizard', 'image': 'assets/images/lizard.png'}], 'answer': 'Umbrella'},
-          {'question': 'What do you hear?', 'audio': 'teacher', 'options': [{'text': 'Teacher', 'image': 'assets/images/teacher.png'}, {'text': 'Umbrella', 'image': 'assets/images/umbrella.png'}, {'text': 'Kangaroo', 'image': 'assets/images/kangaroo.png'}, {'text': 'Dinosaur', 'image': 'assets/images/dinosaur.png'}], 'answer': 'Teacher'},
-          {'question': 'What do you hear?', 'audio': 'pencil', 'options': [{'text': 'Pencil', 'image': 'assets/images/pencil.png'}, {'text': 'Teacher', 'image': 'assets/images/teacher.png'}, {'text': 'Elephant', 'image': 'assets/images/elephant.png'}, {'text': 'Parrot', 'image': 'assets/images/parrot.png'}], 'answer': 'Pencil'},
-        ];
-    }
-  }
+ // 用来存储我们动态生成的题目
+// 用来存储我们动态生成的题目
+  List<Map<String, dynamic>> questions = [];
+
   // 第二步：改写 initState 并加入 _loadDifficulty
   @override
   void initState() {
@@ -82,20 +39,60 @@ class _ListeningGameScreenState extends State<ListeningGameScreen> {
     _loadDifficulty();
   }
 
-  Future<void> _loadDifficulty() async {
-    final level = await ProgressService.getDifficultyLevel(
-        'listening', widget.ageGroup);
+Future<void> _loadDifficulty() async {
+    // 1. 获取难度等级
+    final level = await ProgressService.getDifficultyLevel('listening', widget.ageGroup);
+    
+    // 2. 拉取系统默认词库 + 老师后台添加的自定义词库
+    final allCustomItems = await SandboxItemService.loadGlobalItems();
+
+// 过滤出：只属于当前小朋友年龄段的词，或者老师设定为全年龄通用的词
+final customItems = allCustomItems.where((item) {
+  // 假设你的 Item 模型里加了一个 targetAge 属性
+  return item.targetAge == widget.ageGroup || item.targetAge == 'all'; 
+}).toList();
+    final builtInWords = defaultMapWordsFor(widget.ageGroup);
+    
+    // 3. 将它们合并成一个当前的“活跃词库”
+    final activeWords = mergeCustomVocabulary(builtIn: builtInWords, custom: customItems);
+    
+    // 4. 打乱词库，并抽出 10 个词作为本局游戏的“正确答案”
+    activeWords.shuffle();
+    final targetWords = activeWords.take(10).toList();
+
+    // 5. 自动出题机：为这 10 个正确答案生成完整的题目结构
+    List<Map<String, dynamic>> generatedQuestions = [];
+    
+    for (var target in targetWords) {
+      // 从词库里筛掉正确答案，剩下的打乱，抽出 3 个作为“错误干扰项”
+      var wrongChoices = activeWords.where((w) => w.word != target.word).toList();
+      wrongChoices.shuffle();
+      
+      // 把 1 个正确答案和 3 个错误选项混在一起，再次打乱顺序
+      var optionsWords = [target, ...wrongChoices.take(3)]..shuffle();
+
+      // 按照你原本的 UI 数据格式组装这道题
+      generatedQuestions.add({
+        'question': 'What do you hear?',
+        'audio': target.word.toLowerCase(), // 发音引擎会读这个词
+        'answer': target.word,
+        'options': optionsWords.map((w) => {
+          'text': w.word,
+          'image': w.imageAsset // 如果是老师新加的词，这里会自动变成网络图片链接
+        }).toList(),
+      });
+    }
     
     if (!mounted) return;
+    
+    // 6. 更新状态，告诉系统数据加载完毕，可以渲染页面了
     setState(() {
       difficultyLevel = level;
+      questions = generatedQuestions; // 把做好的题塞进状态里
       isLoadingDifficulty = false;
-      for (var q in questions) {
-        q['options'] =
-            List<Map<String, dynamic>>.from(q['options'])..shuffle();
-      }
     });
 
+    // 7. 延迟半秒钟后，自动朗读第一题的单词
     Future.delayed(const Duration(milliseconds: 500), () {
       _speak();
     });
@@ -428,10 +425,10 @@ ProgressService.saveProgress(
                                       ),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
-                                        child: Image.asset(
-                                          optionImage,
-                                          fit: BoxFit.contain,
-                                          errorBuilder: (_, __, ___) => const Icon(
+                                        // ✨ 使用支持网络和本地图片的 WordImage
+                                        child: WordImage(
+                                          imageAsset: optionImage,
+                                          errorWidget: const Icon(
                                             Icons.broken_image_rounded,
                                             color: Colors.grey,
                                             size: 30,

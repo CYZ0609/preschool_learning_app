@@ -10,15 +10,13 @@ import '../../../data/default_map_words.dart';
 import '../../../widgets/jelly_button.dart';
 import '../../../widgets/word_image.dart';
 import 'world_map_screen.dart';
+import '../../../services/screen_time_service.dart';
 
-/// One roaming creature on the grid — always a placed item whose word has
-/// `isMovable: true` (e.g. a teacher adds "farmer" with isMovable checked,
-/// and once a child places it, it wanders the grid). There is no ambient
-/// wildlife; movement only ever comes from placed items.
+/// One roaming creature on the grid
 class _RoamingEntity {
   double gridX, gridY;
   bool facingRight = true;
-  final PlacedItem placedItem; // identity key back to the real placed item
+  final PlacedItem placedItem;
   _RoamingEntity({required this.gridX, required this.gridY, required this.placedItem});
 }
 
@@ -48,20 +46,29 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
 
   final Random rand = Random();
   Timer? _roamTimer;
+  Timer? _screenTimer; 
+  bool _isTimeUpShown = false; 
+
   final TransformationController _viewController = TransformationController();
 
   bool buildMode = false;
   bool bgFailed = false;
-  bool _initialTransformSet = false; // guards the LayoutBuilder one-time camera lock
+  bool _initialTransformSet = false; 
   bool _hasNewContent = false;      
   bool _hideUI = false; 
   List<String> unlockedWords = [];
   List<PlacedItem> placedItems = [];
   List<LessonWord> _globalItems = [];
+  
+  // 底部手持的新物品 ID
   String? selectedItemId;
+  // 悬停时的幽灵预览 ID
+  String? _previewItemId;
+  
+  PlacedItem? _selectedBoardItem; 
+  
   final GlobalKey _gridKey = GlobalKey();
 
-  // 用于记录拖拽虚影坐标的变量
   int? _hoverX;
   int? _hoverY;
 
@@ -87,9 +94,68 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   void initState() {
     super.initState();
     _roamTimer = Timer.periodic(const Duration(seconds: 2, milliseconds: 500), (_) => _stepEntities());
+   _screenTimer = Timer.periodic(const Duration(minutes: 1), (_) => _recordScreenTime());
     _loadGlobalItems();
     _loadBuildMode();
     _checkNewContent();
+    _checkInitialScreenTime();
+  }
+
+  Future<void> _checkInitialScreenTime() async {
+    final data = await ScreenTimeService.getTodayScreenTime(widget.kidId);
+    final limitReached = data['limitReached'] ?? false;
+    if (limitReached) {
+      _showTimeUpDialog();
+    }
+  }
+
+  Future<void> _recordScreenTime() async {
+    if (_isTimeUpShown) return; 
+
+    await ScreenTimeService.updateScreenTime(1, widget.kidId);
+    
+    final data = await ScreenTimeService.getTodayScreenTime(widget.kidId);
+    final limitReached = data['limitReached'] ?? false;
+    
+    if (limitReached && !_isTimeUpShown) {
+      _showTimeUpDialog();
+    }
+  }
+
+  void _showTimeUpDialog() {
+    if (!mounted) return;
+    setState(() => _isTimeUpShown = true);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false, 
+      builder: (_) => PopScope(
+        canPop: false, 
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Time is up! ⏰', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text(
+            'You have reached your daily screen time limit.\nTime to rest your eyes!',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); 
+                  Navigator.of(context).pop(); 
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF8FAB),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Go Back', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadGlobalItems() async {
@@ -126,13 +192,9 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
     try {
       return widget.lesson.words.firstWhere((w) => w.word == itemId);
     } catch (_) {}
-
-    // 2. 优先级其次：检查老师在后台设置的全局物品（这能成功覆盖掉系统默认的树和石头）
     try {
       return _globalItems.firstWhere((w) => w.word == itemId);
     } catch (_) {}
-
-    // 3. 优先级最低：如果老师没改过，才使用系统自带的默认属性
     try {
       return _globalCatalog().firstWhere((w) => w.word == itemId);
     } catch (_) {
@@ -140,30 +202,17 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
     }
   }
 
-  // ✨ 动态读取物品尺寸
   int _getItemGridSpan(String itemId) {
     final word = _wordFor(itemId);
-    
-    // 如果模型里读取到了后台设置的 width，就优先用后台的尺寸
     if (word != null && word.width != null && word.width! > 0) {
       return word.width!;
     }
-    
-    // 兜底逻辑：如果后台没设，再用默认值
     if (itemId == 'TREE') return 7; 
     if (itemId == 'SUN') return 9; 
     return 3;
   }
 
-  // ✨ 新增：动态读取物品放大倍数
-  double _getItemScale(String itemId) {
-    // 之后如果你在 LessonWord 数据库里也加了 scale 字段，可以解除下面这两行的注释来读取：
-    // final word = _wordFor(itemId);
-    // if (word != null && word.scale != null) return word.scale!;
-    
-    // 目前先统一默认放大 1.6 倍，你可以随意改这个数字看看效果[cite: 2]
-    return 2.0; 
-  }
+  double _getItemScale(String itemId) => 2.0; 
 
   Set<String> _computeObstacleCells() {
     final obstacles = <String>{};
@@ -187,6 +236,8 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   }
 
   void _stepEntities() {
+    if (buildMode) return; 
+
     final obstacles = _computeObstacleCells();
     setState(() {
       for (final entity in _movableRuntimes.values) {
@@ -218,15 +269,8 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   }
 
   Future<void> _placeItemAt(String itemId, int gridX, int gridY) async {
-    debugPrint('[BiomeSandbox] _placeItemAt called: $itemId at ($gridX, $gridY)');
-    
     final clampedX = gridX.clamp(0, gridCols - 1);
     final clampedY = gridY.clamp(0, gridRows - 1);
-
-    final word = _wordFor(itemId);
-    if (word == null) {
-      debugPrint('[BiomeSandbox] WARNING: no LessonWord found for itemId "$itemId" — placing anyway.');
-    }
 
     setState(() {
       placedItems.add(PlacedItem(itemId: itemId, gridX: clampedX.toDouble(), gridY: clampedY.toDouble()));
@@ -235,15 +279,39 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
 
     try {
       await BuildModeService.savePlacements(widget.kidId, widget.biome.name, placedItems);
-    } catch (e, stack) {
-      debugPrint('[BiomeSandbox] Failed to save placement for "$itemId": $e');
-      debugPrint(stack.toString());
+    } catch (e) {
+      debugPrint('[BiomeSandbox] Failed to save placement: $e');
+    }
+  }
+
+  Future<void> _moveExistingItemTo(PlacedItem oldItem, int gridX, int gridY) async {
+    final clampedX = gridX.clamp(0, gridCols - 1);
+    final clampedY = gridY.clamp(0, gridRows - 1);
+
+    setState(() {
+      placedItems.remove(oldItem);
+      final newItem = PlacedItem(
+        itemId: oldItem.itemId, 
+        gridX: clampedX.toDouble(), 
+        gridY: clampedY.toDouble()
+      );
+      placedItems.add(newItem);
+      _selectedBoardItem = newItem; 
+    });
+    
+    _syncMovableRuntimes();
+
+    try {
+      await BuildModeService.savePlacements(widget.kidId, widget.biome.name, placedItems);
+    } catch (e) {
+      debugPrint('[BiomeSandbox] Failed to save move: $e');
     }
   }
 
   Future<void> _packUpItem(PlacedItem item) async {
     setState(() {
       placedItems.remove(item);
+      if (_selectedBoardItem == item) _selectedBoardItem = null; 
     });
     _syncMovableRuntimes();
     await BuildModeService.savePlacements(widget.kidId, widget.biome.name, placedItems);
@@ -252,6 +320,7 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
   @override
   void dispose() {
     _roamTimer?.cancel();
+    _screenTimer?.cancel();
     _viewController.dispose();
     super.dispose();
   }
@@ -273,13 +342,15 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
           await widget.onOpenWord(word);
           if (mounted) {
             setState(() => _hideUI = false);
-           
             await _loadBuildMode();
           }
         },
         onTapUnlocked: (word) {
           Navigator.pop(context);
-          setState(() => selectedItemId = word.word);
+          setState(() {
+            selectedItemId = word.word;
+            _selectedBoardItem = null; 
+          });
         },
       ),
     );
@@ -300,6 +371,69 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
     if (confirmed == true && mounted) Navigator.pop(context);
   }
 
+  Widget _buildPlacedItemWidget(PlacedItem placed, {bool facingRight = true}) {
+    final span = _getItemGridSpan(placed.itemId);
+    
+    Widget content = Container(
+      decoration: _selectedBoardItem == placed
+          ? BoxDecoration(
+              border: Border.all(color: Colors.yellowAccent, width: 4),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withOpacity(0.2),
+            )
+          : null,
+      child: Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()..scale(facingRight ? 1.0 : -1.0, 1.0),
+        child: SizedBox(
+          width: cellSize * span,
+          height: cellSize * span,
+          child: _wordFor(placed.itemId) != null
+              ? WordImage(
+                  imageAsset: _wordFor(placed.itemId)!.imageAsset,
+                  scale: _getItemScale(placed.itemId),
+                )
+              : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
+        ),
+      ),
+    );
+
+if (buildMode) {
+      final currentScale = _viewController.value.getMaxScaleOnAxis();
+      return LongPressDraggable<PlacedItem>(
+        data: placed, 
+        // ✨ 自定义锚点：精确计算你手指按在物品上的哪个相对像素，并乘以当前地图的缩放比例
+        dragAnchorStrategy: (Draggable<Object> draggable, BuildContext context, Offset position) {
+          final RenderBox renderObject = context.findRenderObject() as RenderBox;
+          final Offset localPosition = renderObject.globalToLocal(position); // 获取手指在物体内的坐标
+          // 因为拖拽图像视觉上放大了 1.1 倍，这里也要乘以 1.1，确保手指完美压在按下的原点上
+          return localPosition * (currentScale * 1.1);
+        },
+        feedback: Material(
+          color: Colors.transparent,
+          // ✨ 移除了导致位移的 FractionalTranslation，直接以左上角原点进行放大
+          child: Transform.scale(
+            scale: currentScale * 1.1, 
+            alignment: Alignment.topLeft,
+            child: content,
+          ),
+        ),
+        childWhenDragging: Opacity(opacity: 0.3, child: content), // 原地留个半透明残影
+        onDragStarted: () => setState(() {
+          _selectedBoardItem = placed;
+          _previewItemId = placed.itemId; // 激活幽灵预览
+        }),
+        onDragEnd: (_) => setState(() => _previewItemId = null),
+        child: GestureDetector(
+          onTap: () => setState(() => _selectedBoardItem = placed),
+          child: content,
+        ),
+      );
+    }
+    
+    return content;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -312,7 +446,6 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
             if (!_initialTransformSet && viewport.isFinite && viewport.width > 0 && viewport.height > 0) {
               _initialTransformSet = true;
               final scale = _minScaleFor(viewport);
-              // 镜头自动聚焦到地图正中心
               final dx = (gridCols / 2) * cellSize - (viewport.width / 2) / scale;
               final dy = (gridRows / 2) * cellSize - (viewport.height / 2) / scale;
               _viewController.value = Matrix4.identity()
@@ -329,43 +462,85 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                     maxScale: 2.5,
                     boundaryMargin: EdgeInsets.zero,
                     constrained: false,
-                    child: DragTarget<String>(
+                    child: DragTarget<Object>(
                       onWillAcceptWithDetails: (_) => true,
-                      
                       onMove: (details) {
                         final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
                         if (renderBox == null) return;
-                        final local = renderBox.globalToLocal(details.offset);
-                        final gridX = (local.dx / cellSize).floor();
-                        final gridY = (local.dy / cellSize).floor();
+                        final localMap = renderBox.globalToLocal(details.offset);
                         
-                        if (_hoverX != gridX || _hoverY != gridY) {
-                          setState(() {
-                            _hoverX = gridX;
-                            _hoverY = gridY;
-                          });
+                        int gridX, gridY;
+                        
+                        // ✨ 核心分支逻辑：新物品和旧物品的拖拽坐标原点不同
+                        if (details.data is String) {
+                          // 1. 从底部拿上来的新物品：由于它默认居中于手指，需减去一半体积推算左上角
+                          final dragId = details.data as String;
+                          final span = _getItemGridSpan(dragId);
+                          gridX = ((localMap.dx - (span * cellSize) / 2) / cellSize).round();
+                          gridY = ((localMap.dy - (span * cellSize) / 2) / cellSize).round();
+                          
+                          if (_hoverX != gridX || _hoverY != gridY) {
+                            setState(() {
+                              _hoverX = gridX;
+                              _hoverY = gridY;
+                              _previewItemId = dragId;
+                            });
+                          }
+                        } else if (details.data is PlacedItem) {
+                          // 2. 从地图上抓起的旧物品：details.offset 已经精准指向了物品的左上角，直接除以格子大小！
+                          final placed = details.data as PlacedItem;
+                          gridX = (localMap.dx / cellSize).round();
+                          gridY = (localMap.dy / cellSize).round();
+                          
+                          if (_hoverX != gridX || _hoverY != gridY) {
+                            setState(() {
+                              _hoverX = gridX;
+                              _hoverY = gridY;
+                              _previewItemId = placed.itemId;
+                            });
+                          }
                         }
                       },
-                      
                       onLeave: (_) {
                         setState(() {
                           _hoverX = null;
                           _hoverY = null;
+                          _previewItemId = null;
                         });
                       },
-                      
                       onAcceptWithDetails: (details) {
-                        setState(() {
-                          _hoverX = null;
-                          _hoverY = null;
-                        });
-
                         final renderBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
                         if (renderBox == null) return;
-                        final local = renderBox.globalToLocal(details.offset);
-                        final gridX = (local.dx / cellSize).floor();
-                        final gridY = (local.dy / cellSize).floor();
-                        _placeItemAt(details.data, gridX, gridY);
+                        final localMap = renderBox.globalToLocal(details.offset);
+                        
+                        int gridX, gridY;
+
+                        // ✨ 落地时也采用相同的分支判断逻辑
+                        if (details.data is String) {
+                          final dragId = details.data as String;
+                          final span = _getItemGridSpan(dragId);
+                          gridX = ((localMap.dx - (span * cellSize) / 2) / cellSize).round();
+                          gridY = ((localMap.dy - (span * cellSize) / 2) / cellSize).round();
+                          
+                          setState(() {
+                            _hoverX = null;
+                            _hoverY = null;
+                            _previewItemId = null;
+                          });
+                          _placeItemAt(dragId, gridX, gridY);
+
+                        } else if (details.data is PlacedItem) {
+                          final placed = details.data as PlacedItem;
+                          gridX = (localMap.dx / cellSize).round();
+                          gridY = (localMap.dy / cellSize).round();
+                          
+                          setState(() {
+                            _hoverX = null;
+                            _hoverY = null;
+                            _previewItemId = null;
+                          });
+                          _moveExistingItemTo(placed, gridX, gridY);
+                        }
                       },
                       builder: (context, candidateData, rejectedData) {
                         return SizedBox(
@@ -400,54 +575,24 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                   painter: _GridLinesPainter(cols: gridCols, rows: gridRows, cellSize: cellSize),
                                 ),
                             
-                              // Movable placed items
                               for (final entry in _movableRuntimes.entries)
                                 AnimatedPositioned(
                                   duration: const Duration(milliseconds: 900),
                                   curve: Curves.easeInOut,
                                   left: entry.value.gridX * cellSize,
                                   top: entry.value.gridY * cellSize,
-                                  child: GestureDetector(
-                                    onTap: buildMode ? () => _packUpItem(entry.key) : null,
-                                    child: Transform(
-                                      alignment: Alignment.center,
-                                      transform: Matrix4.identity()..scale(entry.value.facingRight ? 1.0 : -1.0, 1.0),
-                                      child: SizedBox(
-                                        width: cellSize * _getItemGridSpan(entry.key.itemId),
-                                        height: cellSize * _getItemGridSpan(entry.key.itemId),
-                                        child: _wordFor(entry.key.itemId) != null
-                                            ? WordImage(
-                                                imageAsset: _wordFor(entry.key.itemId)!.imageAsset,
-                                                scale: _getItemScale(entry.key.itemId), // ✨ 修改：传入放大倍数
-                                              )
-                                            : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
-                                      ),
-                                    ),
-                                  ),
+                                  child: _buildPlacedItemWidget(entry.key, facingRight: entry.value.facingRight),
                                 ),
-                              // Static placed items
+                                
                               for (final placed in placedItems)
                                 if (_wordFor(placed.itemId)?.isMovable != true)
                                   Positioned(
                                     left: placed.gridX * cellSize,
                                     top: placed.gridY * cellSize,
-                                    child: GestureDetector(
-                                      onTap: buildMode ? () => _packUpItem(placed) : null,
-                                      child: SizedBox(
-                                        width: cellSize * _getItemGridSpan(placed.itemId),
-                                        height: cellSize * _getItemGridSpan(placed.itemId),
-                                        child: _wordFor(placed.itemId) != null
-                                            ? WordImage(
-                                                imageAsset: _wordFor(placed.itemId)!.imageAsset,
-                                                scale: _getItemScale(placed.itemId), // ✨ 修改：传入放大倍数
-                                              )
-                                            : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
-                                      ),
-                                    ),
+                                    child: _buildPlacedItemWidget(placed),
                                   ),
                                   
-                              // 虚影 (Ghost Preview) 显示层
-                              if (buildMode && _hoverX != null && _hoverY != null && selectedItemId != null)
+                              if (buildMode && _hoverX != null && _hoverY != null && _previewItemId != null)
                                 Positioned(
                                   left: _hoverX!.clamp(0, gridCols - 1) * cellSize,
                                   top: _hoverY!.clamp(0, gridRows - 1) * cellSize,
@@ -458,12 +603,12 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                                         color: Colors.white.withOpacity(0.2), 
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      width: cellSize * _getItemGridSpan(selectedItemId!),
-                                      height: cellSize * _getItemGridSpan(selectedItemId!),
-                                      child: _wordFor(selectedItemId!) != null
+                                      width: cellSize * _getItemGridSpan(_previewItemId!),
+                                      height: cellSize * _getItemGridSpan(_previewItemId!),
+                                      child: _wordFor(_previewItemId!) != null
                                           ? WordImage(
-                                              imageAsset: _wordFor(selectedItemId!)!.imageAsset,
-                                              scale: _getItemScale(selectedItemId!), // ✨ 修改：传入放大倍数
+                                              imageAsset: _wordFor(_previewItemId!)!.imageAsset,
+                                              scale: _getItemScale(_previewItemId!), 
                                             )
                                           : const Icon(Icons.emoji_nature_rounded, color: Colors.white70),
                                     ),
@@ -482,46 +627,83 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        GestureDetector(
-                          onTap: _confirmExit,
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                            child: const Icon(Icons.map_rounded, color: Color(0xFF333333)),
-                          ),
-                        ),
+                        // ✨ 替换后：
+JellyButton(
+  color: const Color(0xFF80DEEA), // 使用清新的薄荷青，和右侧的橘色形成很好的视觉呼应
+  onTap: _confirmExit,
+  child: const Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.explore_rounded, color: Colors.white, size: 18), // 换成更有探索感的指南针/地图图标
+      SizedBox(width: 6),
+      Text(
+        'Map', 
+        style: TextStyle(
+          color: Colors.white, 
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+        )
+      ),
+    ],
+  ),
+),
                         const Spacer(),
                         JellyButton(
-                          color: const Color(0xFFFFAB40),
+                          color: buildMode ? const Color(0xFF4DD9C0) : const Color(0xFFFFAB40),
                           onTap: () {
-                            setState(() => buildMode = true);
-                            _openInventoryModal();
+                            setState(() {
+                              buildMode = !buildMode;
+                              if (!buildMode) {
+                                selectedItemId = null;
+                                _selectedBoardItem = null; 
+                              }
+                            });
                           },
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.construction_rounded, color: Colors.white, size: 18),
-                              SizedBox(width: 6),
-                              Text('Build / Inventory'),
+                              Icon(buildMode ? Icons.edit_off_rounded : Icons.construction_rounded, color: Colors.white, size: 18),
+                              const SizedBox(width: 6),
+                              Text(buildMode ? 'Finish Editing' : 'Edit Map'),
                             ],
                           ),
                         ),
-                        if (buildMode) ...[
-                          const SizedBox(width: 8),
-                          JellyButton(
-                            color: const Color(0xFF888888),
-                            onTap: () => setState(() {
-                              buildMode = false;
-                              selectedItemId = null;
-                            }),
-                            padding: const EdgeInsets.all(10),
-                            child: const Icon(Icons.check_rounded, size: 18),
-                          ),
-                        ],
                       ],
                     ),
                   ),
                 ),
+                
+                if (buildMode && _selectedBoardItem != null)
+                  Positioned(
+                    bottom: 120, 
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              onPressed: () => setState(() => _selectedBoardItem = null),
+                            ),
+                            Container(width: 1, height: 24, color: Colors.white30, margin: const EdgeInsets.symmetric(horizontal: 8)),
+                            TextButton.icon(
+                              icon: const Icon(Icons.delete_rounded, color: Colors.redAccent),
+                              label: const Text('Remove from Map', style: TextStyle(color: Colors.white)),
+                              onPressed: () => _packUpItem(_selectedBoardItem!),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
                 if (buildMode && selectedItemId != null)
                   Positioned(
                     bottom: 24,
@@ -530,9 +712,13 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                     child: Center(
                       child: Draggable<String>(
                         data: selectedItemId!,
-                        feedback: Material(
-                          color: Colors.transparent,
-                          child: _HeldItemChip(word: _wordFor(selectedItemId!), label: selectedItemId!),
+                        dragAnchorStrategy: pointerDragAnchorStrategy,
+                        feedback: FractionalTranslation(
+                          translation: const Offset(-0.5, -0.5),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: _HeldItemChip(word: _wordFor(selectedItemId!), label: selectedItemId!),
+                          ),
                         ),
                         childWhenDragging: Opacity(
                           opacity: 0.4,
@@ -543,6 +729,18 @@ class _BiomeSandboxScreenState extends State<BiomeSandboxScreen> {
                           child: _HeldItemChip(word: _wordFor(selectedItemId!), label: selectedItemId!, showHint: true),
                         ),
                       ),
+                    ),
+                  ),
+                  
+                if (buildMode)
+                  Positioned(
+                    bottom: 32,
+                    right: 24,
+                    child: FloatingActionButton.extended(
+                      onPressed: _openInventoryModal,
+                      backgroundColor: const Color(0xFFFFAB40),
+                      icon: const Icon(Icons.add_rounded, color: Colors.white),
+                      label: const Text('Add Item', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
               ],
@@ -567,15 +765,14 @@ class _HeldItemChip extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
-            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
           ),
           child: SizedBox(
             width: 56, height: 56,
             child: word != null
-                // 这里的 WordImage 没加 scale，因为你可能希望背包和底部的拖拽图标保持原来的大小不出界
                 ? WordImage(imageAsset: word!.imageAsset, errorWidget: const Icon(Icons.emoji_nature_rounded))
                 : const Icon(Icons.emoji_nature_rounded),
           ),
@@ -653,6 +850,7 @@ class _InventoryModal extends StatefulWidget {
   final void Function(LessonWord word) onTapUnlocked;
 
   const _InventoryModal({
+    super.key,
     required this.catalog,
     required this.unlockedWords,
     required this.onTapLocked,
@@ -730,7 +928,6 @@ class _InventoryModalState extends State<_InventoryModal> {
                               SizedBox(
                                 width: 80,
                                 height: 80,
-                                // 背包里的图片也没加 scale，保证它们能乖乖待在格子里
                                 child: WordImage(
                                   imageAsset: word.imageAsset,
                                   errorWidget: const Icon(Icons.emoji_nature_rounded, size: 48),

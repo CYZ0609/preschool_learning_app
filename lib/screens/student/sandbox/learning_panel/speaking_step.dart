@@ -72,8 +72,8 @@ class _SpeakingStepState extends State<SpeakingStep> {
   }
 
   bool _isMatch(String spoken, String target) {
-    final s = spoken.toLowerCase();
-    final t = target.toLowerCase();
+    final s = spoken.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final t = target.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
     
     if (s.contains(t)) return true;
 

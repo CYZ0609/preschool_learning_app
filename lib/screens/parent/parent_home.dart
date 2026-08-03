@@ -46,8 +46,9 @@ class ParentHome extends StatelessWidget {
                         builder: (_) => ChildProgressScreen(
                           parentUid: FirebaseAuth.instance.currentUser!.uid,
                         ),
-                           ),
-                             ), ),
+                      ),
+                    ), 
+                  ),
                   const SizedBox(height: 12),
                   _menuCard(
                     context,
@@ -76,8 +77,8 @@ class ParentHome extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const ManageChildScreen()),
-                      ),
-                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
@@ -118,36 +119,38 @@ class ParentHome extends StatelessWidget {
         builder: (context, setState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Add New Child', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  hintText: 'Child\'s Name',
-                  filled: true,
-                  fillColor: const Color(0xFFFFF3F6),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFFFFF3F6), borderRadius: BorderRadius.circular(14)),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedAge,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(value: '4-5', child: Text('Age 4 - 5')),
-                      DropdownMenuItem(value: '5-6', child: Text('Age 5 - 6')),
-                      DropdownMenuItem(value: '6-7', child: Text('Age 6 - 7')),
-                    ],
-                    onChanged: (val) => setState(() => selectedAge = val!),
+          content: SingleChildScrollView( // <-- 就在这里加了 SingleChildScrollView
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: InputDecoration(
+                    hintText: 'Child\'s Name',
+                    filled: true,
+                    fillColor: const Color(0xFFFFF3F6),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(color: const Color(0xFFFFF3F6), borderRadius: BorderRadius.circular(14)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: selectedAge,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(value: '4-5', child: Text('Age 4 - 5')),
+                        DropdownMenuItem(value: '5-6', child: Text('Age 5 - 6')),
+                        DropdownMenuItem(value: '6-7', child: Text('Age 6 - 7')),
+                      ],
+                      onChanged: (val) => setState(() => selectedAge = val!),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'world_map_screen.dart' show Biome;
+import 'package:flutter/material.dart';
+import 'world_map_screen.dart' show Biome;
+import '../../../widgets/jelly_button.dart'; // ✨ 新增这一行（请根据你的实际文件夹层级调整路径）
 
 /// Real world_map.png pixel dimensions.
 const double _worldWidth = 2816;
@@ -57,6 +60,9 @@ class _FlameWorldMapScreenState extends State<FlameWorldMapScreen> {
     super.initState();
     debugPrint('[WorldMap] FlameWorldMapScreen initState — map screen created');
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // ✨ 新增安全检查：防止页面快速关闭时调用 context 报错
+      if (!mounted) return;
+      
       final screenSize = MediaQuery.of(context).size;
       final dx = (_worldWidth / 2) - screenSize.width / 2;
       final dy = (_worldHeight / 2) - screenSize.height / 2;
@@ -94,6 +100,8 @@ class _FlameWorldMapScreenState extends State<FlameWorldMapScreen> {
                         width: _worldWidth,
                         height: _worldHeight,
                         fit: BoxFit.fill,
+                        // ✨ 新增 cacheWidth，将原图解码分辨率压到一半，防止内存溢出和主线程卡死
+                        cacheWidth: (_worldWidth ~/ 2).toInt(),
                         errorBuilder: (context, error, stackTrace) {
                           debugPrint('[WorldMap] FAILED to load world_map.png: $error');
                           return Container(
@@ -122,8 +130,8 @@ class _FlameWorldMapScreenState extends State<FlameWorldMapScreen> {
                               widget.onEnterBiome(def.biome);
                             },
                             child: Container(
-                              decoration:  BoxDecoration(
-                                // ✨ 这里改成了完全透明，且没有边框Colors.transparent ✨
+                              decoration: const BoxDecoration(
+                                // ✨ 透明点击区域
                                 color: Colors.transparent,
                               ),
                             ),
@@ -135,18 +143,29 @@ class _FlameWorldMapScreenState extends State<FlameWorldMapScreen> {
               ),
             ),
             SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                    child: const Icon(Icons.close_rounded, size: 18),
-                  ),
-                ),
-              ),
+  child: Padding(
+    padding: const EdgeInsets.all(16),
+    child: JellyButton(
+      color: const Color(0xFFFFAB40), // 依然使用充满活力的暖橘色
+      onTap: () => Navigator.pop(context),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.home_rounded, color: Colors.white, size: 18),
+          SizedBox(width: 6),
+          Text(
+            'Home',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
             ),
+          ),
+        ],
+      ),
+    ),
+  ),
+),
           ],
         ),
       ),

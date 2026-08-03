@@ -21,62 +21,61 @@ class _KidSelectionScreenState extends State<KidSelectionScreen> {
     _loadAllKids();
   }
 
-  Future<void> _loadAllKids() async {
-    try {
-      // Anonymous login for kids
-      if (FirebaseAuth.instance.currentUser == null) {
-        await FirebaseAuth.instance.signInAnonymously();
-      }
-
-      final List<Map<String, dynamic>> kids = [];
-
-      final parents = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'parent')
-          .get()
-          .timeout(const Duration(seconds: 20));
-
-      for (var parent in parents.docs) {
-        final children = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(parent.id)
-            .collection('children')
-            .get()
-            .timeout(const Duration(seconds: 10));
-
-        for (var child in children.docs) {
-          kids.add({
-            'id': child.id,
-            'parentId': parent.id,
-            'name': child.data()['name'] ?? 'Unknown',
-            'ageGroup': child.data()['ageGroup'] ?? '4-5',
-          });
-        }
-      }
-
+Future<void> _loadAllKids() async {
+  try {
+    // 获取当前登录的用户（家长）
+    final currentUser = FirebaseAuth.instance.currentUser;
+    
+    // 如果没有用户登录，就停止加载
+    if (currentUser == null) {
       if (mounted) {
-        setState(() {
-          allKids = kids;
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
       }
-    } catch (e) {
-      debugPrint("Error loading kids: $e");
+      return;
+    }
 
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
+    final List<Map<String, dynamic>> kids = [];
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading kids: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+    // 只查询当前家长名下的小孩
+    final children = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('children')
+        .get()
+        .timeout(const Duration(seconds: 10));
+
+    for (var child in children.docs) {
+      kids.add({
+        'id': child.id,
+        'parentId': currentUser.uid,
+        'name': child.data()['name'] ?? 'Unknown',
+        'ageGroup': child.data()['ageGroup'] ?? '4-5',
+      });
+    }
+
+    if (mounted) {
+      setState(() {
+        allKids = kids;
+        isLoading = false;
+      });
+    }
+  } catch (e) {
+    debugPrint("Error loading kids: $e");
+
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading kids: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {

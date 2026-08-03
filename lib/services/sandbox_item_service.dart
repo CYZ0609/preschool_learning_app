@@ -37,6 +37,7 @@ class SandboxItemService {
         // ✨ 新增：读取并映射宽和高
         width: data['width'] as int?,
         height: data['height'] as int?,
+        targetAge: data['targetAge'] as String?,
       ));
     }
     return result;

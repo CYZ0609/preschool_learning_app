@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import '../../services/progress_service.dart';
+import '../../../services/sandbox_item_service.dart';
+import '../../../data/default_map_words.dart';
+import '../../../widgets/word_image.dart';
 
 class ReadingGameScreen extends StatefulWidget {
   final String ageGroup;
@@ -19,79 +22,64 @@ class _ReadingGameScreenState extends State<ReadingGameScreen> {
   String? selectedAnswer; // 记录当前点击高亮、但还没点确定的图片路径
   bool answered = false;  // 只有点了 CONFIRM 按钮后，才会锁定并判定对错
 
-  late List<Map<String, dynamic>> questions;
+  List<Map<String, dynamic>> questions = [];
+  bool isLoading = true; // 用于控制加载画面
 
-  // 📖 完美匹配你本地 30 张真实图片的 10 题制“看词选图”题库
-List<Map<String, dynamic>> _generateQuestions(String age) {
-    switch (age) {
-      case '4-5':
-        return [
-          {'word': 'CAT', 'answer': 'assets/images/cat.png', 'options': ['assets/images/cat.png', 'assets/images/dog.png', 'assets/images/sun.png', 'assets/images/tree.png']},
-          {'word': 'DOG', 'answer': 'assets/images/dog.png', 'options': ['assets/images/dog.png', 'assets/images/cow.png', 'assets/images/hat.png', 'assets/images/grass.png']},
-          {'word': 'COW', 'answer': 'assets/images/cow.png', 'options': ['assets/images/cow.png', 'assets/images/pig.png', 'assets/images/bird.png', 'assets/images/ant.png']},
-          {'word': 'PIG', 'answer': 'assets/images/pig.png', 'options': ['assets/images/pig.png', 'assets/images/fish.png', 'assets/images/tree.png', 'assets/images/rock.png']},
-          {'word': 'FISH', 'answer': 'assets/images/fish.png', 'options': ['assets/images/fish.png', 'assets/images/bird.png', 'assets/images/cat.png', 'assets/images/hat.png']},
-          {'word': 'BIRD', 'answer': 'assets/images/bird.png', 'options': ['assets/images/bird.png', 'assets/images/sun.png', 'assets/images/ant.png', 'assets/images/dog.png']},
-          {'word': 'SUN', 'answer': 'assets/images/sun.png', 'options': ['assets/images/sun.png', 'assets/images/hat.png', 'assets/images/grass.png', 'assets/images/cow.png']},
-          {'word': 'HAT', 'answer': 'assets/images/hat.png', 'options': ['assets/images/hat.png', 'assets/images/tree.png', 'assets/images/rock.png', 'assets/images/pig.png']},
-          {'word': 'ANT', 'answer': 'assets/images/ant.png', 'options': ['assets/images/ant.png', 'assets/images/rock.png', 'assets/images/cat.png', 'assets/images/fish.png']},
-          {'word': 'TREE', 'answer': 'assets/images/tree.png', 'options': ['assets/images/tree.png', 'assets/images/grass.png', 'assets/images/dog.png', 'assets/images/bird.png']},
-          {'word': 'GRASS', 'answer': 'assets/images/grass.png', 'options': ['assets/images/grass.png', 'assets/images/rock.png', 'assets/images/sun.png', 'assets/images/pig.png']},
-          {'word': 'ROCK', 'answer': 'assets/images/rock.png', 'options': ['assets/images/rock.png', 'assets/images/cat.png', 'assets/images/hat.png', 'assets/images/cow.png']},
-        ];
-      case '5-6':
-        return [
-          {'word': 'TIGER', 'answer': 'assets/images/tiger.png', 'options': ['assets/images/tiger.png', 'assets/images/rabbit.png', 'assets/images/monkey.png', 'assets/images/apple.png']},
-          {'word': 'RABBIT', 'answer': 'assets/images/rabbit.png', 'options': ['assets/images/rabbit.png', 'assets/images/frog.png', 'assets/images/chair.png', 'assets/images/flower.png']},
-          {'word': 'MONKEY', 'answer': 'assets/images/monkey.png', 'options': ['assets/images/monkey.png', 'assets/images/zebra.png', 'assets/images/table.png', 'assets/images/water.png']},
-          {'word': 'FROG', 'answer': 'assets/images/frog.png', 'options': ['assets/images/frog.png', 'assets/images/fox.png', 'assets/images/mango.png', 'assets/images/fence.png']},
-          {'word': 'ZEBRA', 'answer': 'assets/images/zebra.png', 'options': ['assets/images/zebra.png', 'assets/images/lion.png', 'assets/images/tiger.png', 'assets/images/apple.png']},
-          {'word': 'FOX', 'answer': 'assets/images/fox.png', 'options': ['assets/images/fox.png', 'assets/images/rabbit.png', 'assets/images/chair.png', 'assets/images/water.png']},
-          {'word': 'LION', 'answer': 'assets/images/lion.png', 'options': ['assets/images/lion.png', 'assets/images/monkey.png', 'assets/images/mango.png', 'assets/images/flower.png']},
-          {'word': 'APPLE', 'answer': 'assets/images/apple.png', 'options': ['assets/images/apple.png', 'assets/images/water.png', 'assets/images/mango.png', 'assets/images/frog.png']},
-          {'word': 'CHAIR', 'answer': 'assets/images/chair.png', 'options': ['assets/images/chair.png', 'assets/images/table.png', 'assets/images/fence.png', 'assets/images/zebra.png']},
-          {'word': 'TABLE', 'answer': 'assets/images/table.png', 'options': ['assets/images/table.png', 'assets/images/chair.png', 'assets/images/water.png', 'assets/images/fox.png']},
-          {'word': 'WATER', 'answer': 'assets/images/water.png', 'options': ['assets/images/water.png', 'assets/images/apple.png', 'assets/images/flower.png', 'assets/images/lion.png']},
-          {'word': 'MANGO', 'answer': 'assets/images/mango.png', 'options': ['assets/images/mango.png', 'assets/images/apple.png', 'assets/images/table.png', 'assets/images/tiger.png']},
-          {'word': 'FENCE', 'answer': 'assets/images/fence.png', 'options': ['assets/images/fence.png', 'assets/images/chair.png', 'assets/images/flower.png', 'assets/images/rabbit.png']},
-          {'word': 'FLOWER', 'answer': 'assets/images/flower.png', 'options': ['assets/images/flower.png', 'assets/images/water.png', 'assets/images/mango.png', 'assets/images/monkey.png']},
-        ];
-      case '6-7':
-      default:
-        return [
-          {'word': 'ELEPHANT', 'answer': 'assets/images/elephant.png', 'options': ['assets/images/elephant.png', 'assets/images/giraffe.png', 'assets/images/kangaroo.png', 'assets/images/umbrella.png']},
-          {'word': 'GIRAFFE', 'answer': 'assets/images/giraffe.png', 'options': ['assets/images/giraffe.png', 'assets/images/parrot.png', 'assets/images/teacher.png', 'assets/images/pencil.png']},
-          {'word': 'KANGAROO', 'answer': 'assets/images/kangaroo.png', 'options': ['assets/images/kangaroo.png', 'assets/images/donkey.png', 'assets/images/elephant.png', 'assets/images/umbrella.png']},
-          {'word': 'PARROT', 'answer': 'assets/images/parrot.png', 'options': ['assets/images/parrot.png', 'assets/images/lizard.png', 'assets/images/giraffe.png', 'assets/images/teacher.png']},
-          {'word': 'DONKEY', 'answer': 'assets/images/donkey.png', 'options': ['assets/images/donkey.png', 'assets/images/dinosaur.png', 'assets/images/kangaroo.png', 'assets/images/pencil.png']},
-          {'word': 'LIZARD', 'answer': 'assets/images/lizard.png', 'options': ['assets/images/lizard.png', 'assets/images/parrot.png', 'assets/images/dinosaur.png', 'assets/images/umbrella.png']},
-          {'word': 'DINOSAUR', 'answer': 'assets/images/dinosaur.png', 'options': ['assets/images/dinosaur.png', 'assets/images/elephant.png', 'assets/images/donkey.png', 'assets/images/teacher.png']},
-          {'word': 'UMBRELLA', 'answer': 'assets/images/umbrella.png', 'options': ['assets/images/umbrella.png', 'assets/images/pencil.png', 'assets/images/giraffe.png', 'assets/images/lizard.png']},
-          {'word': 'TEACHER', 'answer': 'assets/images/teacher.png', 'options': ['assets/images/teacher.png', 'assets/images/umbrella.png', 'assets/images/kangaroo.png', 'assets/images/dinosaur.png']},
-          {'word': 'PENCIL', 'answer': 'assets/images/pencil.png', 'options': ['assets/images/pencil.png', 'assets/images/teacher.png', 'assets/images/elephant.png', 'assets/images/parrot.png']},
-        ];
-    }
-  }
   @override
   void initState() {
     super.initState();
     tts.setLanguage('en-US');
     tts.setSpeechRate(0.4);
+    _initGameData();
+  }
 
-    questions = _generateQuestions(widget.ageGroup);
-    // 批量随机打乱所有题目的选项
-    for (var q in questions) {
-      q['options'] = List<String>.from(q['options'])..shuffle();
+  // 动态加载并拼装题目的核心逻辑
+  Future<void> _initGameData() async {
+    final allCustomItems = await SandboxItemService.loadGlobalItems();
+
+// 过滤出：只属于当前小朋友年龄段的词，或者老师设定为全年龄通用的词
+final customItems = allCustomItems.where((item) {
+  // 假设你的 Item 模型里加了一个 targetAge 属性
+  return item.targetAge == widget.ageGroup || item.targetAge == 'all'; 
+}).toList();
+    final builtInWords = defaultMapWordsFor(widget.ageGroup);
+    final activeWords = mergeCustomVocabulary(builtIn: builtInWords, custom: customItems);
+    
+    activeWords.shuffle();
+    final targetWords = activeWords.take(10).toList();
+
+    List<Map<String, dynamic>> generatedQuestions = [];
+    
+    for (var target in targetWords) {
+      var wrongChoices = activeWords.where((w) => w.word != target.word).toList();
+      wrongChoices.shuffle();
+      
+      var optionsWords = [target, ...wrongChoices.take(3)]..shuffle();
+
+      generatedQuestions.add({
+        'word': target.word.toUpperCase(), 
+        'answer': target.imageAsset,       
+        'options': optionsWords.map((w) => {
+          'text': w.word,
+          'image': w.imageAsset
+        }).toList(),
+      });
     }
+
+    if (!mounted) return;
+    
+    setState(() {
+      questions = generatedQuestions;
+      isLoading = false;
+    });
   }
 
   // 1. 小朋友轻触选项：触发高亮，并大声读出该图片的英文单词来消除抽象歧义
-  void tapOption(String optionImage) async {
-    if (answered) return; // 已经锁定答案后不能重复点击
+  void tapOption(String optionImage, String optionText) async {
+    if (answered) return; 
     
-    // 从本地路径提取单词（例如：assets/images/doctor.png -> doctor）
-    String spokenWord = optionImage.split('/').last.split('.').first;
-    await tts.speak(spokenWord);
+    // 直接读出动态词库里的真实单词
+    await tts.speak(optionText);
 
     setState(() {
       selectedAnswer = optionImage;
@@ -117,7 +105,7 @@ List<Map<String, dynamic>> _generateQuestions(String age) {
           selectedAnswer = null;
           answered = false;
           questions[currentQuestion]['options'] =
-              List<String>.from(questions[currentQuestion]['options'])..shuffle();
+              List<Map<String, dynamic>>.from(questions[currentQuestion]['options'])..shuffle();
         });
       } else {
         _showResult();
@@ -128,10 +116,8 @@ List<Map<String, dynamic>> _generateQuestions(String age) {
   // 判定方块应该显示什么颜色
   Color _getOptionColor(String optionImage) {
     if (!answered) {
-      // 还没点确定：如果是当前被选中的方块，给它高亮的粉色外边框
       return optionImage == selectedAnswer ? const Color(0xFFFF8FAB) : const Color(0xFFEEEEEE);
     }
-    // 点了确定后：正确答案亮起健康的青绿色，选错的亮起红色，其余变灰
     if (optionImage == questions[currentQuestion]['answer']) {
       return const Color(0xFF4DD9C0);
     }
@@ -224,12 +210,20 @@ List<Map<String, dynamic>> _generateQuestions(String age) {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF4DD9C0)),
+        ),
+      );
+    }
+
     final q = questions[currentQuestion];
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // 原版背景粉色与青色球体 (100% 完美复刻)
           Positioned(
             top: -40,
             right: -40,
@@ -290,7 +284,6 @@ List<Map<String, dynamic>> _generateQuestions(String age) {
                         color: Color(0xFF333333)),
                   ),
                   const SizedBox(height: 16),
-                  // 原版高级平滑进度条
                   Row(
                     children: List.generate(questions.length, (i) {
                       return Expanded(
@@ -325,7 +318,6 @@ List<Map<String, dynamic>> _generateQuestions(String age) {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // 🌟 中央大字卡：显示当前正在阅读考核的单词文本 🌟
                   Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -353,7 +345,6 @@ List<Map<String, dynamic>> _generateQuestions(String age) {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // 🌟 2x2 精美少儿图片选项网格布局 🌟
                   Expanded(
                     child: GridView.count(
                       shrinkWrap: true,
@@ -361,31 +352,28 @@ List<Map<String, dynamic>> _generateQuestions(String age) {
                       crossAxisSpacing: 14,
                       mainAxisSpacing: 14,
                       childAspectRatio: 1.0,
-                      children: (q['options'] as List<String>).map((optionImage) {
+                      children: (q['options'] as List<Map<String, dynamic>>).map((option) {
+                        String optionImage = option['image'];
+                        String optionText = option['text'];
+
                         return GestureDetector(
-                          onTap: () => tapOption(optionImage),
+                          onTap: () => tapOption(optionImage, optionText),
                           child: Container(
                             decoration: BoxDecoration(
                               color: _getOptionColor(optionImage),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            padding: const EdgeInsets.all(6), // 亮色对错外壳包裹
+                            padding: const EdgeInsets.all(6),
                             child: Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: Colors.white, // 纯白底座，保护非透明图片视觉统一
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.asset(
-                                  optionImage,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => const Icon(
-                                    Icons.broken_image_rounded,
-                                    color: Colors.grey,
-                                    size: 40,
-                                  ),
+                                child: WordImage(
+                                  imageAsset: optionImage,
                                 ),
                               ),
                             ),
@@ -395,7 +383,6 @@ List<Map<String, dynamic>> _generateQuestions(String age) {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // 🌟 全新二级机制核心：CONFIRM 确定按钮 🌟
                   SizedBox(
                     width: double.infinity,
                     height: 54,
@@ -403,7 +390,7 @@ List<Map<String, dynamic>> _generateQuestions(String age) {
                       onPressed: selectedAnswer != null && !answered ? confirmAnswer : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4DD9C0),
-                        disabledBackgroundColor: Colors.grey[300], // 未选择图片时呈现灰色禁用状态
+                        disabledBackgroundColor: Colors.grey[300],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),

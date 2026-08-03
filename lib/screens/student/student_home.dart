@@ -409,20 +409,9 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 24),
                     Text('Hello, ${widget.kidName}!', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
-                    if (assignmentDebugInfo != null)
-                      Container(
-                        margin: const EdgeInsets.only(top: 10),
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.black87,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '[DEBUG] $assignmentDebugInfo',
-                          style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 11),
-                        ),
-                      ),
                     const SizedBox(height: 8),
+                    
+                    // 老师布置的任务依然放在最醒目的位置
                     if (pendingAssignments.isNotEmpty) ...[
                       const Text('From Your Teacher', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
                       const SizedBox(height: 12),
@@ -471,18 +460,8 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                       }),
                       const SizedBox(height: 12),
                     ],
-                    const Text('Topics', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
-                    const SizedBox(height: 20),
-                    _subjectCard(context, icon: Icons.hearing_rounded, label: 'Listening Game', color: const Color(0xFFFFAB40), subject: 'listening'),
-                    const SizedBox(height: 12),
-                    _subjectCard(context, icon: Icons.mic_rounded, label: 'Speaking Game', color: const Color(0xFFFF8FAB), subject: 'speaking'),
-                    const SizedBox(height: 12),
-                    _subjectCard(context, icon: Icons.menu_book_rounded, label: 'Reading Game', color: const Color(0xFF4DD9C0), subject: 'reading'),
-                    const SizedBox(height: 12),
-                    _subjectCard(context, icon: Icons.edit_rounded, label: 'Writing Game', color: const Color(0xFFFFAB40), subject: 'writing'),
-                    const SizedBox(height: 12),
-                    _subjectCard(context, icon: Icons.calculate_rounded, label: 'Arithmetic Game', color: const Color(0xFFFF8FAB), subject: 'arithmetic'),
-                    const SizedBox(height: 20),
+
+                    // ✨ Explore 被移到了这里（复习游戏的前面）
                     const Text('Explore', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
                     const SizedBox(height: 12),
                     GestureDetector(
@@ -503,6 +482,22 @@ class _StudentHomeState extends State<StudentHome> with WidgetsBindingObserver {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // ✨ 5个复习用的游戏现在在下面
+                    const Text('Topics', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
+                    const SizedBox(height: 12),
+                    _subjectCard(context, icon: Icons.hearing_rounded, label: 'Listening Game', color: const Color(0xFFFFAB40), subject: 'listening'),
+                    const SizedBox(height: 12),
+                    _subjectCard(context, icon: Icons.mic_rounded, label: 'Speaking Game', color: const Color(0xFFFF8FAB), subject: 'speaking'),
+                    const SizedBox(height: 12),
+                    _subjectCard(context, icon: Icons.menu_book_rounded, label: 'Reading Game', color: const Color(0xFF4DD9C0), subject: 'reading'),
+                    const SizedBox(height: 12),
+                    _subjectCard(context, icon: Icons.edit_rounded, label: 'Writing Game', color: const Color(0xFFFFAB40), subject: 'writing'),
+                    const SizedBox(height: 12),
+                    _subjectCard(context, icon: Icons.calculate_rounded, label: 'Arithmetic Game', color: const Color(0xFFFF8FAB), subject: 'arithmetic'),
+                    const SizedBox(height: 24),
+                    
+                    // Exit 按钮
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(

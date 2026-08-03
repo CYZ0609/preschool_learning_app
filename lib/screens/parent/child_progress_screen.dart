@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/screen_time_service.dart';
 
 class ChildProgressScreen extends StatefulWidget {
   final String parentUid;
@@ -15,6 +16,9 @@ class _ChildProgressScreenState extends State<ChildProgressScreen> {
   String? selectedChildId;
   String? selectedChildName;
   bool isLoadingChildren = true;
+  // ✨ 新增：用于存储今日沙盒时间和限制
+  int todaySandboxMinutes = 0;
+  int dailyLimit = 30;
 
   @override
   void initState() {
@@ -22,6 +26,15 @@ class _ChildProgressScreenState extends State<ChildProgressScreen> {
     _loadChildren();
   }
 
+// ✨ 新增：拉取沙盒时间的方法
+  Future<void> _loadScreenTime() async {
+    if (selectedChildId == null) return;
+    final data = await ScreenTimeService.getTodayScreenTime(selectedChildId!);
+    setState(() {
+      todaySandboxMinutes = data['totalMinutes'] ?? 0;
+      dailyLimit = data['limitMinutes'] ?? 30;
+    });
+  }
   Future<void> _loadChildren() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('users')
@@ -43,6 +56,7 @@ class _ChildProgressScreenState extends State<ChildProgressScreen> {
       }
       isLoadingChildren = false;
     });
+    await _loadScreenTime();
   }
 
   @override
@@ -89,12 +103,13 @@ class _ChildProgressScreenState extends State<ChildProgressScreen> {
                                   child: Text(child['name']),
                                 );
                               }).toList(),
-                              onChanged: (val) {
+                              onChanged: (val) async {
                                 setState(() {
                                   selectedChildId = val;
                                   selectedChildName = children.firstWhere(
                                       (c) => c['id'] == val)['name'];
                                 });
+                                await _loadScreenTime();
                               },
                             ),
                           ),
@@ -165,6 +180,65 @@ class _ChildProgressScreenState extends State<ChildProgressScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // ✨ 新增：沙盒时间展示卡片
+                                const Text(
+                                  'Today\'s Sandbox Time',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF333333)),
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                                  decoration: BoxDecoration(
+                                    color: todaySandboxMinutes >= dailyLimit 
+                                        ? Colors.redAccent.withOpacity(0.1) 
+                                        : const Color(0xFF4DD9C0).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: todaySandboxMinutes >= dailyLimit 
+                                              ? Colors.redAccent 
+                                              : const Color(0xFF4DD9C0),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: const Icon(Icons.videogame_asset_rounded, color: Colors.white, size: 28),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '$todaySandboxMinutes / $dailyLimit mins',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color: todaySandboxMinutes >= dailyLimit 
+                                                    ? Colors.redAccent 
+                                                    : const Color(0xFF4DD9C0),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              todaySandboxMinutes >= dailyLimit 
+                                                  ? 'Daily limit reached!' 
+                                                  : 'Remaining: ${dailyLimit - todaySandboxMinutes} mins',
+                                              style: const TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 28), // 与下面的学习进度隔开
+                                
                                 Text(
                                   '${selectedChildName ?? "Child"}\'s Performance',
                                   style: const TextStyle(

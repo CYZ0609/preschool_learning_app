@@ -5,9 +5,6 @@ import 'dart:ui' as ui;
 class WritingTracingScreen extends StatefulWidget {
   final String word;
   final String ageGroup;
-  // When part of a multi-word practice run, the caller supplies these so
-  // the completion dialog says "Next Word" instead of "Done" and hands
-  // control back to the caller instead of popping twice on its own.
   final bool isLastWord;
   final VoidCallback? onNext;
 
@@ -25,20 +22,44 @@ class WritingTracingScreen extends StatefulWidget {
 
 class _WritingTracingScreenState extends State<WritingTracingScreen> {
   final FlutterTts tts = FlutterTts();
-  final GlobalKey _traceAreaKey = GlobalKey();
   int currentLetterIndex = 0;
   List<List<Offset>> strokes = [];
   List<Offset> currentStroke = [];
-  bool letterCompleted = false; // true once the child has drawn *something*
-  bool isChecking = false;      // true while validating the trace shape
-  String? traceError;           // inline message shown in-layout, never overlays UI
+  bool letterCompleted = false; 
+  bool isChecking = false;      
+  String? traceError;           
+
+  // ✨ 1. 新增安全尺寸捕获
+  Size? _canvasSize;
+
+  // ✨ 2. 检查字符是否需要描红（只允许英文字母和数字）
+  bool _isTraceable(String char) {
+    return RegExp(r'[A-Za-z0-9]').hasMatch(char);
+  }
 
   @override
   void initState() {
     super.initState();
     tts.setLanguage('en-US');
     tts.setSpeechRate(0.4);
-    _speakWord();
+    
+    // ✨ 3. 初始化时，如果开头遇到空格或特殊符号，自动跳过
+    _skipUntraceable();
+    
+    if (currentLetterIndex < widget.word.length) {
+      _speakWord();
+    }
+  }
+
+  // 自动循环跳过不需要描红的字符
+  void _skipUntraceable() {
+    while (currentLetterIndex < widget.word.length && !_isTraceable(widget.word[currentLetterIndex])) {
+      currentLetterIndex++;
+    }
+    // 如果整个词都是空格/特殊符号（极端边缘情况），直接通关
+    if (currentLetterIndex >= widget.word.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showCompleteDialog());
+    }
   }
 
   Future<void> _speakWord() async {
@@ -55,14 +76,9 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
     await tts.speak(letter);
   }
 
-  // Compares what the child drew against the actual shape of the letter.
-  // Rasterizes the ghost letter into a low-res grid, marks which cells the
-  // child's strokes touched, and requires both:
-  //  - coverage: enough of the letter's shape was actually traced
-  //  - precision: the drawing mostly stayed on the letter, not scribbled elsewhere
   Future<Map<String, dynamic>> _isTraceAccurate(String letter) async {
-    final box = _traceAreaKey.currentContext?.findRenderObject() as RenderBox?;
-    final size = box?.size ?? const Size(300, 300);
+    // ✨ 4. 采用更安全的 Size 获取方式，防止卡死
+    final size = _canvasSize ?? const Size(300, 300);
     if (size.width < 10 || size.height < 10) {
       return {'pass': true, 'reason': 'layout not ready'};
     }
@@ -71,7 +87,6 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
     final cellW = size.width / gridSize;
     final cellH = size.height / gridSize;
 
-    // 1. Rasterize the target letter (must match the ghost Text widget: fontSize 200, centered).
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, size.width, size.height));
     final tp = TextPainter(
@@ -88,14 +103,12 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
     final pixels = byteData.buffer.asUint8List();
     final imgW = image.width;
 
-    // Snapshot the points now, before any further awaits — if the child
-    // taps "Clear" mid-check, we still judge what they actually drew.
     final allPoints = [...strokes.expand((s) => s), ...currentStroke];
 
     bool isLetterPixel(int px, int py) {
       if (px < 0 || py < 0 || px >= image.width || py >= image.height) return false;
       final idx = (py * imgW + px) * 4;
-      return pixels[idx + 3] > 100; // alpha channel
+      return pixels[idx + 3] > 100; 
     }
 
     final targetGrid = List.generate(gridSize, (_) => List.filled(gridSize, false));
@@ -114,15 +127,10 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
         }
       }
     }
-    // Real visible ink size in pixels — NOT tp.width/tp.height, which
-    // include font ascent/descent padding well beyond the actual glyph
-    // strokes and would make this check fail for reasons unrelated to
-    // tracing accuracy.
+
     final inkWidth = inkMaxGX >= inkMinGX ? (inkMaxGX - inkMinGX + 1) * cellW : size.width;
     final inkHeight = inkMaxGY >= inkMinGY ? (inkMaxGY - inkMinGY + 1) * cellH : size.height;
 
-    // Dilate the TARGET by 2 cells — used only for precision (did the
-    // stroke stay reasonably close to the letter, allowing overshoot).
     final dilatedTarget = List.generate(gridSize, (_) => List.filled(gridSize, false));
     for (int gy = 0; gy < gridSize; gy++) {
       for (int gx = 0; gx < gridSize; gx++) {
@@ -140,7 +148,6 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
 
     final drawnGrid = List.generate(gridSize, (_) => List.filled(gridSize, false));
 
-    // Reject near-nothing input outright (a single tap or tiny flick).
     if (allPoints.length < 25) {
       return {'pass': false, 'reason': 'too few points', 'points': allPoints.length};
     }
@@ -156,12 +163,6 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
       if (p.dy > maxY) maxY = p.dy;
     }
 
-    // Dilate the DRAWN points by 3 cells — used only for coverage (does the
-    // stroke's path pass close enough to every part of the letter). This is
-    // the key fix: a thin (~18px) stroke traced perfectly through the
-    // middle of a letter can never fill the letter's own full width, so
-    // coverage must be measured as "target reached by drawing", not
-    // "drawing filled the target region".
     final dilatedDrawn = List.generate(gridSize, (_) => List.filled(gridSize, false));
     for (int gy = 0; gy < gridSize; gy++) {
       for (int gx = 0; gx < gridSize; gx++) {
@@ -177,16 +178,12 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
       }
     }
 
-    // Reject drawings that are too small/cramped to plausibly be a full
-    // trace — measured against THIS letter's own visible ink size, not
-    // font metrics (which include invisible ascent/descent padding).
     final drawnW = maxX - minX;
     final drawnH = maxY - minY;
     
     final wRatio = inkWidth > 0 ? (drawnW / inkWidth).clamp(0.0, 3.0) : 1.0;
     final hRatio = inkHeight > 0 ? (drawnH / inkHeight).clamp(0.0, 3.0) : 1.0;
     
-    // ======== FIX 1: 动态阈值判定，针对窄字母降低宽度要求 ========
     final isNarrowLetter = ['I', 'L', 'J', 'T', 'i', 'l', 'j', 't'].contains(letter);
     final double minWRatio = isNarrowLetter ? 0.10 : 0.35;
 
@@ -198,11 +195,10 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
         'hRatio': hRatio.toStringAsFixed(2),
       };
     }
-    // ==============================================================
 
     int targetCount = 0, drawnCount = 0;
-    int coverageHits = 0;  // raw target cells reached by (dilated) drawing
-    int precisionHits = 0; // raw drawn cells that landed on/near (dilated) target
+    int coverageHits = 0; 
+    int precisionHits = 0; 
     for (int gy = 0; gy < gridSize; gy++) {
       for (int gx = 0; gx < gridSize; gx++) {
         if (targetGrid[gy][gx]) {
@@ -243,9 +239,6 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
       setState(() => isChecking = false);
       _nextLetter();
     } else {
-      // TEMPORARY: showing the raw numbers so we can see exactly why a
-      // trace fails instead of guessing at thresholds blind. Remove the
-      // details once tuning is confirmed correct.
       final details = result.entries
           .where((e) => e.key != 'pass')
           .map((e) => '${e.key}=${e.value}')
@@ -258,9 +251,15 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
   }
 
   void _nextLetter() {
-    if (currentLetterIndex < widget.word.length - 1) {
+    // ✨ 5. 核心修复：查找下一个“有效”的字母
+    int nextIndex = currentLetterIndex + 1;
+    while (nextIndex < widget.word.length && !_isTraceable(widget.word[nextIndex])) {
+      nextIndex++;
+    }
+
+    if (nextIndex < widget.word.length) {
       setState(() {
-        currentLetterIndex++;
+        currentLetterIndex = nextIndex;
         strokes = [];
         currentStroke = [];
         letterCompleted = false;
@@ -268,6 +267,9 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
       });
       _speakLetter(widget.word[currentLetterIndex]);
     } else {
+      setState(() {
+        currentLetterIndex = widget.word.length; // 标记全部完成
+      });
       _showCompleteDialog();
     }
   }
@@ -291,11 +293,11 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                Navigator.pop(context); // close dialog
+                Navigator.pop(context); 
                 if (widget.onNext != null) {
                   widget.onNext!();
                 } else {
-                  Navigator.pop(context); // close screen (standalone mode)
+                  Navigator.pop(context); 
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -318,6 +320,11 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 如果意外超出边界，安全防御
+    if (currentLetterIndex >= widget.word.length) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final currentLetter = widget.word[currentLetterIndex];
 
     return Scaffold(
@@ -339,7 +346,6 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                     child: const Icon(Icons.arrow_back_ios_rounded, color: Color(0xFF333333)),
                   ),
                   const SizedBox(height: 16),
-                  // Progress
                   Row(
                     children: List.generate(widget.word.length, (i) {
                       return Expanded(
@@ -358,7 +364,7 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                   ),
                   const SizedBox(height: 24),
                   
-                  // ======== FIX 2: 单词过长导致溢出，使用 Wrap 替换 Row ========
+                  // ✨ 6. 单词排版视觉修复：遇到空格生成透明间距，遇到特殊字符只显示文字无背景
                   Center(
                     child: GestureDetector(
                       onTap: _speakWord,
@@ -368,6 +374,26 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                         runSpacing: 8.0, 
                         children: [
                           ...List.generate(widget.word.length, (i) {
+                            final char = widget.word[i];
+                            final isTraceable = _isTraceable(char);
+
+                            if (!isTraceable) {
+                              return char == ' ' 
+                                ? const SizedBox(width: 16) 
+                                : Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    child: Text(
+                                      char,
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF888888),
+                                      ),
+                                    ),
+                                  );
+                            }
+
                             return Container(
                               margin: const EdgeInsets.symmetric(horizontal: 4),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -380,7 +406,7 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
-                                widget.word[i],
+                                char,
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -397,7 +423,6 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                       ),
                     ),
                   ),
-                  // ==============================================================
                   
                   const SizedBox(height: 16),
                   Center(
@@ -411,68 +436,71 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Tracing area
+                  
+                  // ✨ 7. 应用 LayoutBuilder 防止底层 RenderBox 获取失败卡死
                   Expanded(
-                    child: Container(
-                      key: _traceAreaKey,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF9F0),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: const Color(0xFFFFAB40).withOpacity(0.3),
-                          width: 2,
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: Stack(
-                          children: [
-                            // Ghost letter (guide)
-                            Center(
-                              child: Text(
-                                currentLetter,
-                                style: TextStyle(
-                                  fontSize: 200,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFFFFAB40).withOpacity(0.15),
-                                ),
-                              ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF9F0),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: const Color(0xFFFFAB40).withOpacity(0.3),
+                              width: 2,
                             ),
-                            // Drawing area
-                            GestureDetector(
-                              onPanStart: (details) {
-                                setState(() {
-                                  currentStroke = [details.localPosition];
-                                  traceError = null;
-                                });
-                              },
-                              onPanUpdate: (details) {
-                                setState(() {
-                                  currentStroke.add(details.localPosition);
-                                });
-                              },
-                              onPanEnd: (details) {
-                                setState(() {
-                                  strokes.add(List.from(currentStroke));
-                                  currentStroke = [];
-                                  letterCompleted = true;
-                                });
-                              },
-                              child: CustomPaint(
-                                painter: _TracingPainter(
-                                  strokes: strokes,
-                                  currentStroke: currentStroke,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Stack(
+                              children: [
+                                Center(
+                                  child: Text(
+                                    currentLetter,
+                                    style: TextStyle(
+                                      fontSize: 200,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFFFFAB40).withOpacity(0.15),
+                                    ),
+                                  ),
                                 ),
-                                child: Container(
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  color: Colors.transparent,
+                                GestureDetector(
+                                  onPanStart: (details) {
+                                    setState(() {
+                                      currentStroke = [details.localPosition];
+                                      traceError = null;
+                                    });
+                                  },
+                                  onPanUpdate: (details) {
+                                    setState(() {
+                                      currentStroke.add(details.localPosition);
+                                    });
+                                  },
+                                  onPanEnd: (details) {
+                                    setState(() {
+                                      strokes.add(List.from(currentStroke));
+                                      currentStroke = [];
+                                      letterCompleted = true;
+                                    });
+                                  },
+                                  child: CustomPaint(
+                                    painter: _TracingPainter(
+                                      strokes: strokes,
+                                      currentStroke: currentStroke,
+                                    ),
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      color: Colors.transparent,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      }
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -498,7 +526,6 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                     ),
                   Row(
                     children: [
-                      // Clear button
                       Expanded(
                         child: OutlinedButton(
                           onPressed: isChecking
@@ -524,7 +551,6 @@ class _WritingTracingScreenState extends State<WritingTracingScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      // Next button
                       Expanded(
                         flex: 2,
                         child: ElevatedButton(

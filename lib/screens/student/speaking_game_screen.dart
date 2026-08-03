@@ -1,7 +1,11 @@
+import 'dart:async'; // ✨ 新增：用于防卡死的 Timer
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../services/progress_service.dart';
+import '../../../services/sandbox_item_service.dart';
+import '../../../data/default_map_words.dart';
+import '../../../widgets/word_image.dart';
 
 class SpeakingGameScreen extends StatefulWidget {
   final String ageGroup;
@@ -18,85 +22,176 @@ class _SpeakingGameScreenState extends State<SpeakingGameScreen> {
 
   int currentQuestion = 0;
   int score = 0;
-  bool isListening = false;
-  String spokenText = '';
   bool answered = false;
   bool? isCorrect;
+  List<Map<String, dynamic>> questions = [];
+  bool isLoading = true;
 
-  // 1. 题库替换：加入你电脑里的真实图片素材，分年龄段，每段 10 题
-List<Map<String, dynamic>> get questions {
-    switch (widget.ageGroup) {
-      case '4-5':
-        return [
-          {'word': 'Cat', 'image': 'assets/images/cat.png'},
-          {'word': 'Dog', 'image': 'assets/images/dog.png'},
-          {'word': 'Cow', 'image': 'assets/images/cow.png'},
-          {'word': 'Pig', 'image': 'assets/images/pig.png'},
-          {'word': 'Fish', 'image': 'assets/images/fish.png'},
-          {'word': 'Bird', 'image': 'assets/images/bird.png'},
-          {'word': 'Sun', 'image': 'assets/images/sun.png'},
-          {'word': 'Hat', 'image': 'assets/images/hat.png'},
-          {'word': 'Ant', 'image': 'assets/images/ant.png'},
-          {'word': 'Tree', 'image': 'assets/images/tree.png'},
-          {'word': 'Grass', 'image': 'assets/images/grass.png'},
-          {'word': 'Rock', 'image': 'assets/images/rock.png'},
-        ];
-      case '5-6':
-        return [
-          {'word': 'Tiger', 'image': 'assets/images/tiger.png'},
-          {'word': 'Rabbit', 'image': 'assets/images/rabbit.png'},
-          {'word': 'Monkey', 'image': 'assets/images/monkey.png'},
-          {'word': 'Frog', 'image': 'assets/images/frog.png'},
-          {'word': 'Zebra', 'image': 'assets/images/zebra.png'},
-          {'word': 'Fox', 'image': 'assets/images/fox.png'},
-          {'word': 'Lion', 'image': 'assets/images/lion.png'},
-          {'word': 'Apple', 'image': 'assets/images/apple.png'},
-          {'word': 'Chair', 'image': 'assets/images/chair.png'},
-          {'word': 'Table', 'image': 'assets/images/table.png'},
-          {'word': 'Water', 'image': 'assets/images/water.png'},
-          {'word': 'Mango', 'image': 'assets/images/mango.png'},
-          {'word': 'Fence', 'image': 'assets/images/fence.png'},
-          {'word': 'Flower', 'image': 'assets/images/flower.png'},
-        ];
-      case '6-7':
-      default:
-        return [
-          {'word': 'Elephant', 'image': 'assets/images/elephant.png'},
-          {'word': 'Giraffe', 'image': 'assets/images/giraffe.png'},
-          {'word': 'Kangaroo', 'image': 'assets/images/kangaroo.png'},
-          {'word': 'Parrot', 'image': 'assets/images/parrot.png'},
-          {'word': 'Donkey', 'image': 'assets/images/donkey.png'},
-          {'word': 'Lizard', 'image': 'assets/images/lizard.png'},
-          {'word': 'Dinosaur', 'image': 'assets/images/dinosaur.png'},
-          {'word': 'Umbrella', 'image': 'assets/images/umbrella.png'},
-          {'word': 'Teacher', 'image': 'assets/images/teacher.png'},
-          {'word': 'Pencil', 'image': 'assets/images/pencil.png'},
-        ];
-    }
-  }
+  // ✨ 引入了第一个方法的高级状态控制
+  bool isListening = false;
+  bool speechReady = false;
+  String recognizedText = '';
+  double maxSoundLevel = 0;
+  Timer? _fallbackTimer;
+
   @override
   void initState() {
     super.initState();
     tts.setLanguage('en-US');
     tts.setSpeechRate(0.4);
+    _initSpeech(); // ✨ 初始化语音引擎
+    _initGameData();
+  }
+
+  // ✨ 新增：更严谨的初始化逻辑
+  Future<void> _initSpeech() async {
+    bool ready = await speech.initialize(
+      onStatus: (status) {
+        if (status == 'done' || status == 'notListening') {
+          if (mounted && isListening) {
+            setState(() => isListening = false);
+            _evaluate();
+          }
+        }
+      },
+      onError: (error) {
+        if (mounted && isListening) {
+          setState(() => isListening = false);
+          _evaluate();
+        }
+      },
+    );
+    if (mounted) setState(() => speechReady = ready);
+  }
+
+  @override
+  void dispose() {
+    _fallbackTimer?.cancel(); // ✨ 清理 Timer
+    speech.stop();
+    tts.stop();
+    super.dispose();
+  }
+
+  Future<void> _initGameData() async {
+   final allCustomItems = await SandboxItemService.loadGlobalItems();
+
+// 过滤出：只属于当前小朋友年龄段的词，或者老师设定为全年龄通用的词
+final customItems = allCustomItems.where((item) {
+  // 假设你的 Item 模型里加了一个 targetAge 属性
+  return item.targetAge == widget.ageGroup || item.targetAge == 'all'; 
+}).toList();
+    final builtInWords = defaultMapWordsFor(widget.ageGroup);
+    final activeWords = mergeCustomVocabulary(builtIn: builtInWords, custom: customItems);
+    
+    activeWords.shuffle();
+    final targetWords = activeWords.take(10).toList();
+
+    List<Map<String, dynamic>> generatedQuestions = [];
+    for (var target in targetWords) {
+      generatedQuestions.add({
+        'word': target.word,
+        'image': target.imageAsset,
+      });
+    }
+
+    if (!mounted) return;
+    
+    setState(() {
+      questions = generatedQuestions;
+      isLoading = false;
+    });
+
     Future.delayed(const Duration(milliseconds: 500), () {
       _speakWord();
     });
   }
 
   Future<void> _speakWord() async {
-    // 2. 将 words 替换为 questions[...]['word']
-    await tts.speak(questions[currentQuestion]['word']);
+    if (questions.isNotEmpty) {
+      await tts.speak(questions[currentQuestion]['word']);
+    }
   }
 
-  void _stopAndCheck() {
-    speech.stop();
+  // ✨ 新增：第一个方法里的模糊匹配逻辑
+  bool _isMatch(String spoken, String target) {
+final s = spoken.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final t = target.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+    if (s.contains(t)) return true;
+    if (t == 'dog' && (s.contains('log') || s.contains('long') || s.contains('dark') || s.contains('dot'))) return true;
+    
+    return false;
+  }
+
+  // ✨ 新增：替换掉原来死板的 5 秒录音，改用高级监听模式
+  Future<void> _startListening() async {
+    if (!speechReady) {
+      await _initSpeech();
+      if (!speechReady) return; 
+    }
+    if (isListening || answered) return;
+
+    _fallbackTimer?.cancel();
+    _fallbackTimer = Timer(const Duration(seconds: 11), () {
+      if (mounted && isListening) {
+        _stopListening();
+      }
+    });
+
+    setState(() {
+      isListening = true;
+      recognizedText = '';
+      maxSoundLevel = 0;
+    });
+    
+    final targetWord = questions[currentQuestion]['word'] as String;
+
+    await speech.listen(
+      localeId: 'en-US',
+      cancelOnError: false,
+      partialResults: true, 
+      listenMode: stt.ListenMode.dictation, // 更适合单字识别
+      onResult: (result) {
+        if (mounted) {
+          setState(() => recognizedText = result.recognizedWords);
+          
+          // 如果识别结果匹配到了目标单词，立刻停止并判对！
+          if (_isMatch(recognizedText, targetWord)) {
+            _fallbackTimer?.cancel();
+            speech.stop();
+            if (isListening) {
+              setState(() => isListening = false);
+              _handleAnswer(true); // 立刻触发正确逻辑
+            }
+          }
+        }
+      },
+      onSoundLevelChange: (level) {
+        if (mounted && level > maxSoundLevel) setState(() => maxSoundLevel = level);
+      },
+      listenFor: const Duration(seconds: 10),
+      pauseFor: const Duration(seconds: 4),
+    );
+  }
+
+  Future<void> _stopListening() async {
+    _fallbackTimer?.cancel();
+    await speech.stop();
+  }
+
+  // ✨ 新增：如果录音自动结束（没有提前匹配成功），则统一在此处验证
+  void _evaluate() {
+    if (answered) return; 
+    final targetWord = questions[currentQuestion]['word'] as String;
+    _handleAnswer(_isMatch(recognizedText, targetWord));
+  }
+
+  // ✨ 新增：处理验证结果并进入下一题的逻辑
+  void _handleAnswer(bool isCorrectAnswer) {
     setState(() {
       isListening = false;
       answered = true;
-      // 2. 对比时提取 'word' 进行比对
-      isCorrect = spokenText.toLowerCase().trim() ==
-          (questions[currentQuestion]['word'] as String).toLowerCase();
+      isCorrect = isCorrectAnswer;
       if (isCorrect == true) score++;
     });
 
@@ -106,7 +201,7 @@ List<Map<String, dynamic>> get questions {
           currentQuestion++;
           answered = false;
           isCorrect = null;
-          spokenText = '';
+          recognizedText = '';
         });
         Future.delayed(const Duration(milliseconds: 300), () {
           _speakWord();
@@ -139,7 +234,7 @@ List<Map<String, dynamic>> get questions {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '$score / ${questions.length}', // 替换为 questions.length
+              '$score / ${questions.length}', 
               style: const TextStyle(
                 fontSize: 48,
                 fontWeight: FontWeight.bold,
@@ -200,6 +295,15 @@ List<Map<String, dynamic>> get questions {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF8FAB)),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -282,7 +386,7 @@ List<Map<String, dynamic>> get questions {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Question ${currentQuestion + 1} of ${questions.length}', // 替换为 questions.length
+                    'Question ${currentQuestion + 1} of ${questions.length}', 
                     style: const TextStyle(
                         fontSize: 13, color: Color(0xFF888888)),
                   ),
@@ -297,9 +401,8 @@ List<Map<String, dynamic>> get questions {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24), // 调整了间距为放入图片留出空间
+                  const SizedBox(height: 24),
                   
-                  // 3. ✨ 唯一新增的 UI：展示当前单词对应的离线图片 ✨
                   Center(
                     child: Container(
                       width: 160,
@@ -318,21 +421,14 @@ List<Map<String, dynamic>> get questions {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.asset(
-                          questions[currentQuestion]['image'],
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.broken_image_rounded,
-                            color: Colors.grey,
-                            size: 40,
-                          ),
+                        child: WordImage(
+                          imageAsset: questions[currentQuestion]['image'],
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
                   
-                  // 原版：Word + speaker
                   Center(
                     child: GestureDetector(
                       onTap: _speakWord,
@@ -347,7 +443,7 @@ List<Map<String, dynamic>> get questions {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              questions[currentQuestion]['word'], // 替换为 questions[...]['word']
+                              questions[currentQuestion]['word'], 
                               style: const TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
@@ -363,36 +459,15 @@ List<Map<String, dynamic>> get questions {
                     ),
                   ),
                   const SizedBox(height: 50),
-                  // Mic button (完全保留你的逻辑)
+                  
+                  // ✨ 替换了原本的死板事件，绑定到了 _startListening 和 _stopListening
                   Center(
                     child: GestureDetector(
-                      onTap: () async {
-                        bool available = await speech.initialize();
-                        if (!available) {
-                          setState(() => spokenText = 'NOT AVAILABLE');
-                          return;
-                        }
-
-                        setState(() {
-                          isListening = true;
-                          spokenText = 'LISTENING...';
-                        });
-
-                        await speech.listen(
-                          onResult: (result) {
-                            setState(() {
-                              spokenText = 'HEARD: ${result.recognizedWords}';
-                            });
-                          },
-                        );
-
-                        Future.delayed(const Duration(seconds: 5), () {
-                          _stopAndCheck(); // 核心检查逻辑
-                        });
-                      },
-                      child: Container(
-                        width: 110,
-                        height: 110,
+                      onTap: isListening ? _stopListening : _startListening,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: isListening ? 130 : 110,
+                        height: isListening ? 130 : 110,
                         decoration: BoxDecoration(
                           color: isListening
                               ? Colors.redAccent
@@ -418,9 +493,11 @@ List<Map<String, dynamic>> get questions {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  
+                  // ✨ 统一使用 recognizedText 来显示识别状态
                   Center(
                     child: Text(
-                      'DEBUG: "$spokenText"',
+                      'DEBUG: "$recognizedText"',
                       style: const TextStyle(
                           color: Colors.blue, fontWeight: FontWeight.bold),
                     ),
@@ -436,7 +513,7 @@ List<Map<String, dynamic>> get questions {
                       child: Column(
                         children: [
                           Text(
-                            'You said: "$spokenText"',
+                            'You said: "$recognizedText"',
                             style: const TextStyle(color: Color(0xFF888888)),
                           ),
                           const SizedBox(height: 8),

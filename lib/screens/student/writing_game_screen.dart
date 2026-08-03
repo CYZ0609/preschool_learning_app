@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/progress_service.dart';
+import '../../../services/sandbox_item_service.dart';
+import '../../../data/default_map_words.dart';
+import '../../../widgets/word_image.dart';
 
 class WritingGameScreen extends StatefulWidget {
   final String ageGroup;
@@ -16,81 +19,58 @@ class _WritingGameScreenState extends State<WritingGameScreen> {
   List<Offset?> userPoints = [];
   bool checked = false;
   double coverage = 0.0;
+  bool isLoading = true;
 
-  // true for 4-5 (letters, no picture needed), false for 5-7 (words + picture)
   late bool isLetterMode;
-  late List<Map<String, String>> items;
-
-  // 4-5: just the alphabet, no picture required — keeps it simple
-  List<Map<String, String>> _generateLetters() {
-    return List.generate(26, (i) {
-      final letter = String.fromCharCode(65 + i); // A-Z
-      return {'word': letter, 'image': ''};
-    });
-  }
-
-  // 5-7: simple words with a picture for context
-List<Map<String, String>> _generateWords(String age) {
-    switch (age) {
-      case '4-5':
-        return [
-          {'word': 'CAT', 'image': 'assets/images/cat.png'},
-          {'word': 'DOG', 'image': 'assets/images/dog.png'},
-          {'word': 'COW', 'image': 'assets/images/cow.png'},
-          {'word': 'PIG', 'image': 'assets/images/pig.png'},
-          {'word': 'FISH', 'image': 'assets/images/fish.png'},
-          {'word': 'BIRD', 'image': 'assets/images/bird.png'},
-          {'word': 'SUN', 'image': 'assets/images/sun.png'},
-          {'word': 'HAT', 'image': 'assets/images/hat.png'},
-          {'word': 'ANT', 'image': 'assets/images/ant.png'},
-          {'word': 'TREE', 'image': 'assets/images/tree.png'},
-          {'word': 'GRASS', 'image': 'assets/images/grass.png'},
-          {'word': 'ROCK', 'image': 'assets/images/rock.png'},
-        ];
-      case '5-6':
-        return [
-          {'word': 'TIGER', 'image': 'assets/images/tiger.png'},
-          {'word': 'RABBIT', 'image': 'assets/images/rabbit.png'},
-          {'word': 'MONKEY', 'image': 'assets/images/monkey.png'},
-          {'word': 'FROG', 'image': 'assets/images/frog.png'},
-          {'word': 'ZEBRA', 'image': 'assets/images/zebra.png'},
-          {'word': 'FOX', 'image': 'assets/images/fox.png'},
-          {'word': 'LION', 'image': 'assets/images/lion.png'},
-          {'word': 'APPLE', 'image': 'assets/images/apple.png'},
-          {'word': 'CHAIR', 'image': 'assets/images/chair.png'},
-          {'word': 'TABLE', 'image': 'assets/images/table.png'},
-          {'word': 'WATER', 'image': 'assets/images/water.png'},
-          {'word': 'MANGO', 'image': 'assets/images/mango.png'},
-          {'word': 'FENCE', 'image': 'assets/images/fence.png'},
-          {'word': 'FLOWER', 'image': 'assets/images/flower.png'},
-        ];
-      case '6-7':
-      default:
-        return [
-          {'word': 'ELEPHANT', 'image': 'assets/images/elephant.png'},
-          {'word': 'GIRAFFE', 'image': 'assets/images/giraffe.png'},
-          {'word': 'KANGAROO', 'image': 'assets/images/kangaroo.png'},
-          {'word': 'PARROT', 'image': 'assets/images/parrot.png'},
-          {'word': 'DONKEY', 'image': 'assets/images/donkey.png'},
-          {'word': 'LIZARD', 'image': 'assets/images/lizard.png'},
-          {'word': 'DINOSAUR', 'image': 'assets/images/dinosaur.png'},
-          {'word': 'UMBRELLA', 'image': 'assets/images/umbrella.png'},
-          {'word': 'TEACHER', 'image': 'assets/images/teacher.png'},
-          {'word': 'PENCIL', 'image': 'assets/images/pencil.png'},
-        ];
-    }
-  }
+  List<Map<String, dynamic>> items = []; 
   
+  // ✨ 新增：用于绝对安全地记录画板的实际大小，防止由于取不到尺寸导致卡死
+  Size? _canvasSize;
+
   @override
   void initState() {
     super.initState();
-    // 4-5 -> letters only. 5-6 and 6-7 -> simple words with a picture.
     isLetterMode = widget.ageGroup == '4-5';
-    items = isLetterMode ? _generateLetters() : _generateWords(widget.ageGroup);
+    _initGameData();
   }
 
-  void _onPanUpdate(DragUpdateDetails details) {
-    final box = context.findRenderObject() as RenderBox;
+  Future<void> _initGameData() async {
+    if (isLetterMode) {
+      final letters = List.generate(26, (i) {
+        final letter = String.fromCharCode(65 + i); 
+        return {'word': letter, 'image': ''};
+      });
+      if (mounted) {
+        setState(() {
+          items = letters;
+          isLoading = false;
+        });
+      }
+    } else {
+      final customItems = await SandboxItemService.loadGlobalItems();
+      final builtInWords = defaultMapWordsFor(widget.ageGroup);
+      final activeWords = mergeCustomVocabulary(builtIn: builtInWords, custom: customItems);
+
+      activeWords.shuffle();
+      final targetWords = activeWords.take(10).toList();
+
+      final generatedWords = targetWords.map((w) => {
+        'word': w.word.toUpperCase(), 
+        'image': w.imageAsset,
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          items = generatedWords;
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  // ✨ 修复：接收局部的 BuildContext，确保画的线完美跟随手指，没有偏差
+  void _onPanUpdate(DragUpdateDetails details, BuildContext localContext) {
+    final box = localContext.findRenderObject() as RenderBox;
     final local = box.globalToLocal(details.globalPosition);
     setState(() {
       userPoints.add(local);
@@ -99,7 +79,7 @@ List<Map<String, String>> _generateWords(String age) {
 
   void _onPanEnd(DragEndDetails details) {
     setState(() {
-      userPoints.add(null); // stroke break
+      userPoints.add(null); 
     });
   }
 
@@ -111,10 +91,16 @@ List<Map<String, String>> _generateWords(String age) {
     });
   }
 
-  // Compares user strokes against the guide text's sampled points.
   void _checkTracing() {
-    final text = items[currentItem]['word']!;
-    final guidePoints = _GuideTextPainter(text: text, isLetterMode: isLetterMode).samplePoints();
+    // ✨ 如果画板还没渲染好，强制允许通过，防止卡死
+    if (_canvasSize == null) {
+      setState(() { checked = true; coverage = 0.0; });
+      return;
+    }
+
+    final text = items[currentItem]['word'] as String;
+    // ✨ 传入准确的画板尺寸进行分析
+    final guidePoints = _GuideTextPainter(text: text, isLetterMode: isLetterMode).samplePoints(_canvasSize!);
 
     if (userPoints.where((p) => p != null).isEmpty || guidePoints.isEmpty) {
       setState(() {
@@ -182,9 +168,7 @@ List<Map<String, String>> _generateWords(String age) {
               children: List.generate(3, (i) {
                 final starsEarned = score == items.length
                     ? 3
-                    : score >= (items.length * 0.6).ceil()
-                        ? 2
-                        : 1;
+                    : score >= (items.length * 0.6).ceil() ? 2 : 1;
                 return Icon(
                   Icons.star_rounded,
                   size: 40,
@@ -226,6 +210,13 @@ List<Map<String, String>> _generateWords(String age) {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator(color: Color(0xFFFFAB40))),
+      );
+    }
+
     final item = items[currentItem];
 
     return Scaffold(
@@ -267,7 +258,6 @@ List<Map<String, String>> _generateWords(String age) {
                   ),
                   const SizedBox(height: 16),
 
-                  // Only show a picture in word mode (5-7). Letters skip the image.
                   if (!isLetterMode) ...[
                     Container(
                       width: 100,
@@ -278,7 +268,10 @@ List<Map<String, String>> _generateWords(String age) {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))],
                       ),
-                      child: ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.asset(item['image']!, fit: BoxFit.contain)),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14), 
+                        child: WordImage(imageAsset: item['image'] as String),
+                      ),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -288,26 +281,38 @@ List<Map<String, String>> _generateWords(String age) {
                     style: const TextStyle(fontSize: 16, color: Color(0xFF888888), fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 12),
+                  
+                  // ✨ 核心修复区：利用 LayoutBuilder 动态获取尺寸，防止任何因为尺寸导致的卡死
                   Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF8EF),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFFFE0B2), width: 2),
-                      ),
-                      child: GestureDetector(
-                        onPanUpdate: _onPanUpdate,
-                        onPanEnd: _onPanEnd,
-                        child: CustomPaint(
-                          size: Size.infinite,
-                          painter: _TracingPainter(
-                            text: item['word']!,
-                            userPoints: userPoints,
-                            isLetterMode: isLetterMode,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+                        return Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8EF),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: const Color(0xFFFFE0B2), width: 2),
                           ),
-                        ),
-                      ),
+                          // ✨ 引入 Builder 确保坐标 100% 对应到画布上
+                          child: Builder(
+                            builder: (localContext) {
+                              return GestureDetector(
+                                onPanUpdate: (details) => _onPanUpdate(details, localContext),
+                                onPanEnd: _onPanEnd,
+                                child: CustomPaint(
+                                  size: Size.infinite,
+                                  painter: _TracingPainter(
+                                    text: item['word'] as String,
+                                    userPoints: userPoints,
+                                    isLetterMode: isLetterMode,
+                                  ),
+                                ),
+                              );
+                            }
+                          ),
+                        );
+                      }
                     ),
                   ),
                   if (checked) ...[
@@ -360,7 +365,6 @@ List<Map<String, String>> _generateWords(String age) {
   }
 }
 
-/// Draws the hollow guide letter(s)/word with tracing dots, plus the kid's strokes on top.
 class _TracingPainter extends CustomPainter {
   final String text;
   final List<Offset?> userPoints;
@@ -370,7 +374,6 @@ class _TracingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Bigger font for single letters (4-5), smaller for full words (5-7)
     final fontSize = isLetterMode
         ? (size.height * 0.6).clamp(80.0, 220.0)
         : (size.width / (text.length + 1)).clamp(36.0, 90.0);
@@ -389,19 +392,18 @@ class _TracingPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     );
     tp.layout(maxWidth: size.width - 20);
+    
     final offset = Offset(
       (size.width - tp.width) / 2,
       (size.height - tp.height) / 2,
     );
     tp.paint(canvas, offset);
 
-    // Dots along the baseline for a "tracing book" feel
     final dotPaint = Paint()..color = const Color(0xFFFFD699);
     for (double x = offset.dx; x < offset.dx + tp.width; x += 14) {
       canvas.drawCircle(Offset(x, offset.dy + tp.height * 0.82), 1.8, dotPaint);
     }
 
-    // Kid's drawn strokes
     final strokePaint = Paint()
       ..color = const Color(0xFF4DD9C0)
       ..strokeWidth = isLetterMode ? 10 : 6
@@ -421,14 +423,16 @@ class _TracingPainter extends CustomPainter {
   bool shouldRepaint(covariant _TracingPainter old) => true;
 }
 
-/// Samples approximate guide-text pixel positions for coverage scoring.
 class _GuideTextPainter {
   final String text;
   final bool isLetterMode;
   _GuideTextPainter({required this.text, required this.isLetterMode});
 
-  List<Offset> samplePoints() {
-    final fontSize = isLetterMode ? 160.0 : 70.0;
+  List<Offset> samplePoints(Size size) {
+    final fontSize = isLetterMode
+        ? (size.height * 0.6).clamp(80.0, 220.0)
+        : (size.width / (text.length + 1)).clamp(36.0, 90.0);
+
     final tp = TextPainter(
       text: TextSpan(
         text: text,
@@ -440,12 +444,30 @@ class _GuideTextPainter {
       ),
       textDirection: TextDirection.ltr,
     );
-    tp.layout();
+    tp.layout(maxWidth: size.width - 20);
+    
+    final offset = Offset(
+      (size.width - tp.width) / 2,
+      (size.height - tp.height) / 2,
+    );
+
     final points = <Offset>[];
-    for (double x = 0; x < tp.width; x += 6) {
-      // sample a vertical band through the middle of the text for rough coverage
-      for (double y = tp.height * 0.2; y < tp.height * 0.8; y += 10) {
-        points.add(Offset(x, y));
+    
+    for (int i = 0; i < text.length; i++) {
+      final char = text[i];
+      
+      // ✨ 宇宙无敌终极防御：如果不是英文字母也不是数字（遇到空格或连字符-），一律跳过，绝不生成追踪点！
+      if (!RegExp(r'[A-Za-z0-9]').hasMatch(char)) {
+        continue;
+      }
+      
+      final boxes = tp.getBoxesForSelection(TextSelection(baseOffset: i, extentOffset: i + 1));
+      for (final box in boxes) {
+        for (double x = box.left; x < box.right; x += 6) {
+          for (double y = box.top + (box.bottom - box.top) * 0.2; y < box.bottom - (box.bottom - box.top) * 0.2; y += 10) {
+            points.add(Offset(x + offset.dx, y + offset.dy));
+          }
+        }
       }
     }
     return points;
