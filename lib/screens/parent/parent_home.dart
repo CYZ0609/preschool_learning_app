@@ -9,7 +9,7 @@ import 'manage_child_screen.dart';
 class ParentHome extends StatelessWidget {
   const ParentHome({super.key});
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -20,87 +20,90 @@ class ParentHome extends StatelessWidget {
           Positioned(bottom: -40, left: -40, child: Container(width: 180, height: 180, decoration: const BoxDecoration(color: Color(0xFF80DEEA), shape: BoxShape.circle))),
           Positioned(bottom: 20, left: 20, child: Container(width: 120, height: 120, decoration: const BoxDecoration(color: Color(0xFF4DD9C0), shape: BoxShape.circle))),
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.arrow_back_ios_rounded, color: Color(0xFF333333)),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text('Parent Dashboard', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
-                  const SizedBox(height: 8),
-                  const Text('Monitor your child\'s learning', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
-                  const SizedBox(height: 28),
-                  _menuCard(
-                    context,
-                    icon: Icons.bar_chart_rounded,
-                    label: 'My Child\'s Progress',
-                    subtitle: 'View learning performance',
-                    color: const Color(0xFFFFAB40),
-                    onTap: () => Navigator.push(
+            // 💡 重点修改：在这里给主页面的内容加上 SingleChildScrollView
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.arrow_back_ios_rounded, color: Color(0xFF333333)),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text('Parent Dashboard', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF333333))),
+                    const SizedBox(height: 8),
+                    const Text('Monitor your child\'s learning', style: TextStyle(fontSize: 14, color: Color(0xFF888888))),
+                    const SizedBox(height: 28),
+                    _menuCard(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => ChildProgressScreen(
-                          parentUid: FirebaseAuth.instance.currentUser!.uid,
+                      icon: Icons.bar_chart_rounded,
+                      label: 'My Child\'s Progress',
+                      subtitle: 'View learning performance',
+                      color: const Color(0xFFFFAB40),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChildProgressScreen(
+                            parentUid: FirebaseAuth.instance.currentUser!.uid,
+                          ),
                         ),
-                      ),
-                    ), 
-                  ),
-                  const SizedBox(height: 12),
-                  _menuCard(
-                    context,
-                    icon: Icons.timer_rounded,
-                    label: 'Screen Time',
-                    subtitle: 'Monitor and set daily limits',
-                    color: const Color(0xFFFF8FAB),
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ScreenTimeScreen())),
-                  ),
-                  const SizedBox(height: 12),
-                  _menuCard(
-                    context,
-                    icon: Icons.person_add_rounded,
-                    label: 'Add New Child',
-                    subtitle: 'Register another child',
-                    color: const Color(0xFF4DD9C0),
-                    onTap: () => _showAddChildDialog(context),
-                  ),
-                  const SizedBox(height: 12),
-                  _menuCard(
-                    context,
-                    icon: Icons.manage_accounts_rounded,
-                    label: 'Manage Child Account',
-                    subtitle: 'Edit profile and settings',
-                    color: const Color(0xFF64B5F6),
-                    onTap: () => Navigator.push(
+                      ), 
+                    ),
+                    const SizedBox(height: 12),
+                    _menuCard(
                       context,
-                      MaterialPageRoute(builder: (_) => const ManageChildScreen()),
+                      icon: Icons.timer_rounded,
+                      label: 'Screen Time',
+                      subtitle: 'Monitor and set daily limits',
+                      color: const Color(0xFFFF8FAB),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ScreenTimeScreen())),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (!context.mounted) return;
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (_) => const HomeScreen()),
-                          (route) => false,
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFFF8FAB)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                    const SizedBox(height: 12),
+                    _menuCard(
+                      context,
+                      icon: Icons.person_add_rounded,
+                      label: 'Add New Child',
+                      subtitle: 'Register another child',
+                      color: const Color(0xFF4DD9C0),
+                      onTap: () => _showAddChildDialog(context),
+                    ),
+                    const SizedBox(height: 12),
+                    _menuCard(
+                      context,
+                      icon: Icons.manage_accounts_rounded,
+                      label: 'Manage Child Account',
+                      subtitle: 'Edit profile and settings',
+                      color: const Color(0xFF64B5F6),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ManageChildScreen()),
                       ),
-                      child: const Text('Logout', style: TextStyle(color: Color(0xFFFF8FAB), fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (!context.mounted) return;
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (_) => const HomeScreen()),
+                            (route) => false,
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFFF8FAB)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Logout', style: TextStyle(color: Color(0xFFFF8FAB), fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -108,7 +111,6 @@ class ParentHome extends StatelessWidget {
       ),
     );
   }
-
   void _showAddChildDialog(BuildContext context) {
     final nameController = TextEditingController();
     String selectedAge = '4-5';

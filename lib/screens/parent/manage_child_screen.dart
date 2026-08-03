@@ -15,6 +15,7 @@ class _ManageChildScreenState extends State<ManageChildScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false, 
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -188,37 +189,40 @@ class _ManageChildScreenState extends State<ManageChildScreen> {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, String childId, String name) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Delete Child', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to remove $name?', textAlign: TextAlign.center),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF888888))),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(parentUid)
-                  .collection('children')
-                  .doc(childId)
-                  .delete();
-              if (!context.mounted) return;
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$name removed.'), backgroundColor: Colors.redAccent),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-}
+void _showDeleteDialog(BuildContext context, String childId, String name) {
+  showDialog(
+    context: context,
+    // 1. 给弹窗的 context 起个独立名字，比如 dialogContext
+    builder: (dialogContext) => AlertDialog( 
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Delete Child', textAlign: TextAlign.center),
+      content: Text('Are you sure you want to remove $name?'),
+      actions: [
+        TextButton(
+          // 取消按钮：使用 dialogContext 关闭
+          onPressed: () => Navigator.pop(dialogContext), 
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            // 1. 执行你的数据库删除操作
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(parentUid) // 这里根据你的实际变量来
+                .collection('children')
+                .doc(childId)
+                .delete();
+            
+            // 2. 核心防御代码：检查 dialogContext 是否还活着
+            if (!dialogContext.mounted) return;
+            
+            // 3. 安全地关闭弹窗
+            Navigator.pop(dialogContext); 
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('Delete', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+} }    
