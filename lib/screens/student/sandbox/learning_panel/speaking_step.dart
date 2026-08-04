@@ -167,10 +167,17 @@ class _SpeakingStepState extends State<SpeakingStep> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        SizedBox(
-          width: 300,
-          height: 300,
-          child: WordImage(imageAsset: widget.imageAsset),
+        Flexible(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 300,
+              maxHeight: 300,
+            ),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: WordImage(imageAsset: widget.imageAsset),
+            ),
+          ),
         ),
         const SizedBox(height: 16),
         Container(

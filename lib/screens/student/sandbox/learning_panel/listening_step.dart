@@ -52,10 +52,17 @@ class _ListeningStepState extends State<ListeningStep> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        SizedBox(
-          width: 300,
-          height: 300,
-          child: WordImage(imageAsset: widget.imageAsset),
+        Flexible(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 300,
+              maxHeight: 300,
+            ),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: WordImage(imageAsset: widget.imageAsset),
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         GestureDetector(
