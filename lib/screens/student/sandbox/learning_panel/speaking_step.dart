@@ -109,17 +109,22 @@ class _SpeakingStepState extends State<SpeakingStep> {
       cancelOnError: false,  // 💡 遇到小杂音不要中断
       partialResults: true,  // 💡 即时回传部分结果
       listenMode: stt.ListenMode.dictation, // 💡 听写模式，对单字更敏锐
-      onResult: (result) {
+onResult: (result) {
         if (mounted) {
           setState(() => recognizedText = result.recognizedWords);
           
           if (_isMatch(recognizedText, widget.word)) {
-            _fallbackTimer?.cancel(); // 💡 匹配成功，取消 Timer
+            _fallbackTimer?.cancel(); 
             speech.stop();
             if (isListening) {
               setState(() => isListening = false);
               _pass();
             }
+          } else if (result.finalResult && isListening) {
+            // 💡 核心修复 2：如果插件侦测到停顿并自己结束了录音，但词没读对，强制重置状态
+            _fallbackTimer?.cancel();
+            setState(() => isListening = false);
+            _evaluate();
           }
         }
       },
@@ -131,9 +136,14 @@ class _SpeakingStepState extends State<SpeakingStep> {
     );
   }
 
-  Future<void> _stopListening() async {
-    _fallbackTimer?.cancel(); // 💡 手动停止时，清理 Timer
+Future<void> _stopListening() async {
+    _fallbackTimer?.cancel(); 
     await speech.stop();
+    // 💡 核心修复 1：不要等插件回调，强行把红灯关掉，恢复按钮可用状态
+    if (mounted && isListening) {
+      setState(() => isListening = false);
+      _evaluate(); 
+    }
   }
 
   void _evaluate() {
